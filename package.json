@@ -1,0 +1,14 @@
+{
+  "name": "demon-teach-monorepo",
+  "version": "1.0.0",
+  "description": "Demon Teach - AI Language Learning Platform",
+  "scripts": {
+    "install-all": "npm install && cd demon_teach_backend && npm install && cd ../demon_teach_admin && npm install",
+    "backend": "cd demon_teach_backend && npm run dev",
+    "admin": "cd demon_teach_admin && set PORT=3001 && npm start",
+    "start-all": "npx concurrently \"npm run backend\" \"npm run admin\""
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

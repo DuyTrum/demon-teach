@@ -1,0 +1,105 @@
+{
+  "title": "Greetings and Introductions",
+  "difficulty": "basic",
+  "topic": "conversation",
+  "targetLanguage": "en",
+  "durationEstimate": 10,
+  "content": {
+    "flashcards": [
+      {
+        "id": "fc1",
+        "lessonId": "lesson1",
+        "frontText": "Hello",
+        "backText": "Xin chào",
+        "exampleUsage": "Hello, how are you?",
+        "audioUrl": "https://cdn.example.com/audio/hello.mp3"
+      },
+      {
+        "id": "fc2",
+        "lessonId": "lesson1",
+        "frontText": "Goodbye",
+        "backText": "Tạm biệt",
+        "exampleUsage": "Goodbye, see you tomorrow!",
+        "audioUrl": "https://cdn.example.com/audio/goodbye.mp3"
+      },
+      {
+        "id": "fc3",
+        "lessonId": "lesson1",
+        "frontText": "Thank you",
+        "backText": "Cảm ơn",
+        "exampleUsage": "Thank you very much!",
+        "audioUrl": "https://cdn.example.com/audio/thankyou.mp3"
+      }
+    ],
+    "listeningExercise": {
+      "id": "le1",
+      "lessonId": "lesson1",
+      "audioUrl": "https://cdn.example.com/audio/conversation1.mp3",
+      "durationSeconds": 30,
+      "questions": [
+        {
+          "questionText": "What greeting did the person use?",
+          "options": ["Hello", "Goodbye", "Thank you", "Sorry"],
+          "correctAnswer": "Hello",
+          "explanation": "The person said 'Hello' at the beginning of the conversation."
+        },
+        {
+          "questionText": "How did the conversation end?",
+          "options": ["Hello", "Goodbye", "Thank you", "See you"],
+          "correctAnswer": "Goodbye",
+          "explanation": "The conversation ended with 'Goodbye'."
+        },
+        {
+          "questionText": "What phrase was used to show gratitude?",
+          "options": ["Hello", "Goodbye", "Thank you", "Sorry"],
+          "correctAnswer": "Thank you",
+          "explanation": "The person said 'Thank you' to show gratitude."
+        }
+      ]
+    },
+    "quiz": {
+      "id": "quiz1",
+      "lessonId": "lesson1",
+      "title": "Greetings Quiz",
+      "questions": [
+        {
+          "id": "q1",
+          "type": "multipleChoice",
+          "questionText": "What is 'Hello' in Vietnamese?",
+          "options": ["Xin chào", "Tạm biệt", "Cảm ơn", "Xin lỗi"],
+          "correctAnswer": "Xin chào",
+          "explanation": "Xin chào means Hello in Vietnamese"
+        },
+        {
+          "id": "q2",
+          "type": "multipleChoice",
+          "questionText": "What is 'Goodbye' in Vietnamese?",
+          "options": ["Xin chào", "Tạm biệt", "Cảm ơn", "Xin lỗi"],
+          "correctAnswer": "Tạm biệt",
+          "explanation": "Tạm biệt means Goodbye in Vietnamese"
+        },
+        {
+          "id": "q3",
+          "type": "multipleChoice",
+          "questionText": "What is 'Thank you' in Vietnamese?",
+          "options": ["Xin chào", "Tạm biệt", "Cảm ơn", "Xin lỗi"],
+          "correctAnswer": "Cảm ơn",
+          "explanation": "Cảm ơn means Thank you in Vietnamese"
+        },
+        {
+          "id": "q4",
+          "type": "fillInBlank",
+          "questionText": "Complete: '_____, how are you?'",
+          "correctAnswer": "Hello",
+          "explanation": "Hello is the correct greeting to start a conversation"
+        }
+      ]
+    },
+    "speakingExercise": {
+      "id": "se1",
+      "lessonId": "lesson1",
+      "phrase": "Hello, nice to meet you",
+      "modelAudioUrl": "https://cdn.example.com/audio/model_hello.mp3"
+    }
+  }
+}

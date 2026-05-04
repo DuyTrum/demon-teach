@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "481955215288",
+    "project_id": "demon-teach",
+    "storage_bucket": "demon-teach.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:481955215288:android:c9b41549d971e277a2814d",
+        "android_client_info": {
+          "package_name": "com.demonteach.demon_teach"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfPT5aObhGKAMCo0fkf-tOU3ayWQn2n4E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
