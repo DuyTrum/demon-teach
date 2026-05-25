@@ -15,7 +15,9 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8080'],
+  origin: function (origin, callback) {
+    callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -43,6 +45,67 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
+const axios = require('axios');
+const { EdgeTTS } = require('node-edge-tts');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+app.get('/api/tts', async (req, res, next) => {
+  try {
+    const { text, language } = req.query;
+    if (!text || !language) {
+      return res.status(400).json({ success: false, message: 'Text and language parameters are required' });
+    }
+
+    const voiceMap = {
+      'en': { voice: 'en-US-EmmaMultilingualNeural', lang: 'en-US' },
+      'zh': { voice: 'zh-CN-XiaoxiaoNeural', lang: 'zh-CN' },
+      'ko': { voice: 'ko-KR-SunHiNeural', lang: 'ko-KR' },
+      'vi': { voice: 'vi-VN-HoaiMyNeural', lang: 'vi-VN' }
+    };
+
+    const voiceConfig = voiceMap[language] || voiceMap['en'];
+
+    const tts = new EdgeTTS({
+      voice: voiceConfig.voice,
+      lang: voiceConfig.lang,
+      outputFormat: 'audio-24khz-96kbitrate-mono-mp3'
+    });
+
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const tempFileName = `tts_${crypto.randomBytes(16).toString('hex')}.mp3`;
+    const tempFilePath = path.join(tempDir, tempFileName);
+
+    await tts.ttsPromise(text, tempFilePath);
+
+    res.set('Content-Type', 'audio/mpeg');
+    res.sendFile(tempFilePath, (err) => {
+      // Clean up the temp file after sending
+      try {
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+      } catch (cleanupError) {
+        console.error('Error deleting temp TTS file:', cleanupError.message);
+      }
+      if (err && !res.headersSent) {
+        console.error('Error sending TTS file:', err.message);
+        res.status(500).end();
+      }
+    });
+  } catch (error) {
+    console.error('Error in Edge TTS proxy:', error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Error playing audio through Edge TTS proxy' });
+    }
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use('/api/content', contentRoutes);

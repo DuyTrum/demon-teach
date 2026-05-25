@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/theme/app_theme.dart';
 import 'package:demon_teach/domain/entities/flashcard.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:demon_teach/core/constants/app_constants.dart';
+import 'package:demon_teach/presentation/providers/language_provider.dart';
 
 /// Widget to display a flashcard with flip animation
-class FlashcardWidget extends StatefulWidget {
+class FlashcardWidget extends ConsumerStatefulWidget {
   final Flashcard flashcard;
   final bool isFlipped;
 
@@ -15,10 +18,10 @@ class FlashcardWidget extends StatefulWidget {
   });
 
   @override
-  State<FlashcardWidget> createState() => _FlashcardWidgetState();
+  ConsumerState<FlashcardWidget> createState() => _FlashcardWidgetState();
 }
 
-class _FlashcardWidgetState extends State<FlashcardWidget> {
+class _FlashcardWidgetState extends ConsumerState<FlashcardWidget> {
   late AudioPlayer _audioPlayer;
 
   @override
@@ -34,9 +37,23 @@ class _FlashcardWidgetState extends State<FlashcardWidget> {
   }
 
   Future<void> _playAudio() async {
-    if (widget.flashcard.audioUrl == null) return;
+    var url = widget.flashcard.audioUrl;
+    if (url == null || url.isEmpty) {
+      final languageState = ref.read(languageProvider);
+      final targetLang = languageState.preference?.targetLanguage ?? 'en';
+      url = '/api/tts?text=${Uri.encodeComponent(widget.flashcard.frontText)}&language=$targetLang';
+    }
+    if (url.startsWith('/')) {
+      url = '${AppConstants.apiBaseUrl}$url';
+    }
     try {
-      await _audioPlayer.setUrl(widget.flashcard.audioUrl!);
+      try {
+        await _audioPlayer.setSpeed(1.08); // Slightly faster for an upbeat tempo
+      } catch (_) {}
+      try {
+        await _audioPlayer.setPitch(1.22); // Cute, friendly, high-pitched assistant voice!
+      } catch (_) {}
+      await _audioPlayer.setUrl(url);
       await _audioPlayer.play();
     } catch (e) {
       debugPrint('Error playing audio: $e');
@@ -159,7 +176,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (widget.flashcard.audioUrl != null)
+                if (widget.flashcard.frontText.isNotEmpty)
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -179,7 +196,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget> {
                       ),
                     ),
                   ),
-                if (widget.flashcard.audioUrl != null) const SizedBox(width: AppTheme.spacingLg),
+                if (widget.flashcard.frontText.isNotEmpty) const SizedBox(width: AppTheme.spacingLg),
                 Icon(
                   Icons.touch_app,
                   size: 16,

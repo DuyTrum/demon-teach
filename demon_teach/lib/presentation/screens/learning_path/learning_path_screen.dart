@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:demon_teach/core/theme/app_theme.dart';
-import 'package:demon_teach/presentation/providers/learning_path_provider.dart';
+import 'package:demon_teach/presentation/screens/onboarding/assessment_screen.dart';
 import 'package:demon_teach/presentation/providers/auth_provider.dart';
 import 'package:demon_teach/presentation/providers/language_provider.dart';
+import 'package:demon_teach/core/theme/app_theme.dart';
+import 'package:demon_teach/presentation/providers/learning_path_provider.dart';
 import 'package:demon_teach/presentation/widgets/common/custom_button.dart';
 import 'package:demon_teach/presentation/widgets/common/loading_indicator.dart';
 import 'package:demon_teach/presentation/widgets/common/error_message.dart';
 import 'package:demon_teach/presentation/screens/lesson/daily_lesson_screen.dart';
+import 'package:demon_teach/domain/entities/assessment.dart';
+import 'package:demon_teach/domain/entities/learning_goal.dart';
 
 class LearningPathScreen extends ConsumerStatefulWidget {
   const LearningPathScreen({super.key});
@@ -21,19 +24,27 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // ignore: missing_return
       _loadPath();
     });
   }
 
-  void _loadPath() {
+  Future<void> _loadPath() async {
     final user = ref.read(authProvider).user;
-    final langPref = ref.read(languageProvider).preference;
+    final languagePref = ref.read(languageProvider).preference;
     
-    if (user != null && langPref != null) {
+    print('--- LEARNING PATH DEBUG ---');
+    print('User: ${user?.id}');
+    print('Language: ${languagePref?.targetLanguage}');
+    
+    if (user != null && languagePref != null) {
+      print('Calling loadLearningPath...');
       ref.read(learningPathProvider.notifier).loadLearningPath(
         userId: user.id,
-        targetLanguage: langPref.targetLanguage,
+        targetLanguage: languagePref.targetLanguage,
       );
+    } else {
+      print('Not calling loadLearningPath because user or languagePref is null');
     }
   }
 
@@ -43,7 +54,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lộ trình học tập'),
+        title: const Text('Your Learning Path'),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -53,41 +64,39 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen> {
               ? Center(
                   child: ErrorMessage(
                     message: pathState.error!,
-                    onRetry: _loadPath,
+                    onRetry: () {
+                      // Retry logic can be added here
+                    },
                   ),
                 )
               : pathState.path == null
-                  ? _buildNoPathFound()
-                  : _buildPathContent(context, ref, pathState),
-    );
-  }
-
-  Widget _buildNoPathFound() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.sentiment_dissatisfied, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text('Không tìm thấy lộ trình học tập.'),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              // Navigate to onboarding or generator
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Vui lòng hoàn thành đánh giá trình độ.')),
-              );
-            },
-            child: const Text('Bắt đầu đánh giá'),
-          ),
-        ],
-      ),
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Chưa có lộ trình học nào được tạo.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(height: 16),
+                          CustomButton(
+                            text: 'Tạo Lộ trình học',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const AssessmentScreen()),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    )
+                  : _buildPathContent(context, pathState),
     );
   }
 
   Widget _buildPathContent(
     BuildContext context,
-    WidgetRef ref,
     LearningPathState pathState,
   ) {
     final path = pathState.path!;
@@ -111,7 +120,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen> {
             const SizedBox(height: AppTheme.spacingMd),
 
             // Action buttons
-            _buildActionButtons(context, ref, path),
+            _buildActionButtons(context, path),
           ],
         ),
       ),
@@ -413,7 +422,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen> {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, WidgetRef ref, path) {
+  Widget _buildActionButtons(BuildContext context, path) {
     return Column(
       children: [
         if (!path.isCompleted)
@@ -431,18 +440,199 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen> {
         const SizedBox(height: AppTheme.spacingSm),
         CustomButton(
           text: 'Modify Learning Path',
-          onPressed: () {
-            // TODO: Navigate to path modification screen
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Path modification coming soon!'),
-              ),
-            );
-          },
+          onPressed: () => _showModifyPathSheet(context, path),
           isOutlined: true,
           icon: Icons.edit,
         ),
       ],
+    );
+  }
+
+  void _showModifyPathSheet(BuildContext context, path) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => _ModifyPathBottomSheet(path: path),
+    );
+  }
+}
+
+class _ModifyPathBottomSheet extends ConsumerStatefulWidget {
+  final dynamic path;
+
+  const _ModifyPathBottomSheet({required this.path});
+
+  @override
+  ConsumerState<_ModifyPathBottomSheet> createState() => _ModifyPathBottomSheetState();
+}
+
+class _ModifyPathBottomSheetState extends ConsumerState<_ModifyPathBottomSheet> {
+  late ProficiencyLevel _selectedLevel;
+  late GoalType _selectedGoal;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedLevel = widget.path.proficiencyLevel;
+    _selectedGoal = widget.path.goalType;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppTheme.spacingLg,
+        right: AppTheme.spacingLg,
+        top: AppTheme.spacingLg,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppTheme.spacingXl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingLg),
+          Text(
+            'Điều chỉnh lộ trình học',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppTheme.spacingXl),
+
+          // Proficiency Level selection
+          Text(
+            'Trình độ của bạn',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: AppTheme.spacingSm),
+          Wrap(
+            spacing: 8,
+            children: ProficiencyLevel.values.map((level) {
+              final isSelected = _selectedLevel == level;
+              return ChoiceChip(
+                label: Text(level.displayName),
+                selected: isSelected,
+                selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                labelStyle: TextStyle(
+                  color: isSelected ? AppTheme.primaryColor : Colors.black87,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+                onSelected: (selected) {
+                  if (selected) {
+                    setState(() {
+                      _selectedLevel = level;
+                    });
+                  }
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: AppTheme.spacingLg),
+
+          // Goal Type selection
+          Text(
+            'Mục tiêu học tập',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: AppTheme.spacingSm),
+          Column(
+            children: GoalType.values.map((goal) {
+              final isSelected = _selectedGoal == goal;
+              return Card(
+                elevation: isSelected ? 2 : 0,
+                color: isSelected ? AppTheme.primaryColor.withOpacity(0.05) : Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: isSelected ? AppTheme.primaryColor : Colors.grey[300]!,
+                  ),
+                ),
+                child: ListTile(
+                  leading: Text(goal.icon, style: const TextStyle(fontSize: 24)),
+                  title: Text(
+                    goal.displayName,
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? AppTheme.primaryColor : AppTheme.textPrimaryColor,
+                    ),
+                  ),
+                  subtitle: Text(goal.description, style: const TextStyle(fontSize: 12)),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle, color: AppTheme.primaryColor)
+                      : null,
+                  onTap: () {
+                    setState(() {
+                      _selectedGoal = goal;
+                    });
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: AppTheme.spacingXl),
+
+          // Confirm button
+          CustomButton(
+            text: 'Cập nhật lộ trình',
+            isLoading: _isLoading,
+            onPressed: () async {
+              setState(() {
+                _isLoading = true;
+              });
+
+              final success = await ref
+                  .read(learningPathProvider.notifier)
+                  .regeneratePath(
+                    newProficiencyLevel: _selectedLevel,
+                    newGoalType: _selectedGoal,
+                  );
+
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+                if (success) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Lộ trình học đã được cập nhật thành công!'),
+                      backgroundColor: AppTheme.successColor,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Không thể cập nhật lộ trình. Vui lòng thử lại.'),
+                      backgroundColor: AppTheme.errorColor,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 }

@@ -8,7 +8,7 @@ class GetAssessment {
 
   GetAssessment(this._repository);
 
-  Future<Result<Assessment>> call(String targetLanguage) async {
-    return await _repository.getAssessment(targetLanguage);
+  Future<Result<Assessment>> call(String targetLanguage, String nativeLanguage) async {
+    return await _repository.getAssessment(targetLanguage, nativeLanguage);
   }
 }

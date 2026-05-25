@@ -1,8 +1,8 @@
 import 'package:demon_teach/core/theme/app_theme.dart';
+import 'package:demon_teach/presentation/providers/auth_provider.dart';
 import 'package:demon_teach/domain/entities/learning_goal.dart';
 import 'package:demon_teach/presentation/providers/goal_provider.dart';
 import 'package:demon_teach/presentation/providers/language_provider.dart';
-import 'package:demon_teach/presentation/providers/auth_provider.dart';
 import 'package:demon_teach/presentation/providers/assessment_provider.dart';
 import 'package:demon_teach/presentation/providers/learning_path_provider.dart';
 import 'package:demon_teach/presentation/screens/learning_path/learning_path_screen.dart';
@@ -255,12 +255,12 @@ class _GoalConfigurationScreenState
     }
 
     final user = ref.read(authProvider).user;
-    if (user == null) return;
+    final actualUserId = user?.id ?? 'default_user';
 
     // Generate learning path
     final pathSuccess =
         await ref.read(learningPathProvider.notifier).generatePath(
-              userId: user.id,
+              userId: actualUserId,
               targetLanguage: languageState.preference!.targetLanguage,
               proficiencyLevel: assessmentState.result!.proficiencyLevel,
               goalType: goal.goalType,
@@ -269,12 +269,8 @@ class _GoalConfigurationScreenState
     if (!context.mounted) return;
 
     if (pathSuccess) {
-      // Navigate to learning path screen
-      navigator.pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const LearningPathScreen(),
-        ),
-      );
+      // Pop back to main screen
+      navigator.popUntil((route) => route.isFirst);
     } else {
       messenger.showSnackBar(
         const SnackBar(

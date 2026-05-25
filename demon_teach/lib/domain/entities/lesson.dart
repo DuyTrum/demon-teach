@@ -146,11 +146,9 @@ class LessonMetadata extends Entity {
       description: json['description'] as String,
       category: LessonCategory.values.firstWhere(
         (e) => e.name == json['category'],
-        orElse: () => LessonCategory.vocabulary,
       ),
       difficulty: LessonDifficulty.values.firstWhere(
         (e) => e.name == json['difficulty'],
-        orElse: () => LessonDifficulty.beginner,
       ),
       targetLanguage: json['targetLanguage'] as String,
       estimatedDurationMinutes: json['estimatedDurationMinutes'] as int,

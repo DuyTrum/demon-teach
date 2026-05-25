@@ -83,10 +83,10 @@ class AssessmentNotifier extends StateNotifier<AssessmentState> {
   AssessmentNotifier(this._getAssessment, this._submitAssessment)
       : super(AssessmentState());
 
-  Future<void> loadAssessment(String targetLanguage) async {
+  Future<void> loadAssessment(String targetLanguage, String nativeLanguage) async {
     state = state.copyWith(isLoading: true, error: null);
 
-    final result = await _getAssessment(targetLanguage);
+    final result = await _getAssessment(targetLanguage, nativeLanguage);
 
     result.when(
       success: (assessment) {

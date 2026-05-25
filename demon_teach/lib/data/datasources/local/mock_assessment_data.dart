@@ -314,17 +314,71 @@ class MockAssessmentData {
     );
   }
 
-  /// Get assessment by language code
-  static Assessment getAssessmentByLanguage(String languageCode) {
+  static Assessment getAssessmentByLanguage(String languageCode, {String nativeLanguage = 'en'}) {
+    Assessment assessment;
     switch (languageCode) {
       case 'en':
-        return getEnglishAssessment();
+        assessment = getEnglishAssessment();
+        break;
       case 'zh':
-        return getChineseAssessment();
+        assessment = getChineseAssessment();
+        break;
       case 'ko':
-        return getKoreanAssessment();
+        assessment = getKoreanAssessment();
+        break;
       default:
-        return getEnglishAssessment();
+        assessment = getEnglishAssessment();
     }
+    return _translateAssessment(assessment, nativeLanguage);
+  }
+
+  static Assessment _translateAssessment(Assessment assessment, String nativeLanguage) {
+    if (nativeLanguage != 'vi') return assessment;
+
+    final Map<String, String> translations = <String, String>{
+      'What is the correct greeting?': 'Câu chào đúng là gì?',
+      'Choose the correct pronoun: ___ am a student.': 'Chọn đại từ đúng: ___ am a student.',
+      'What does "cat" mean?': 'Từ "cat" nghĩa là gì?',
+      'Choose the correct verb form: She ___ to school every day.': 'Chọn dạng động từ đúng: She ___ to school every day.',
+      'What is the past tense of "eat"?': 'Quá khứ của từ "eat" là gì?',
+      'Which word means "happy"?': 'Từ nào có nghĩa là "happy" (vui vẻ)?',
+      'Complete: If it rains, I ___ stay home.': 'Điền vào chỗ trống: If it rains, I ___ stay home.',
+      'Choose the correct form: By next year, I ___ English for 5 years.': 'Chọn dạng đúng: By next year, I ___ English for 5 years.',
+      'What does "procrastinate" mean?': 'Từ "procrastinate" nghĩa là gì?',
+      "Identify the error: \"She don't like coffee.\"": "Tìm lỗi sai: \"She don't like coffee.\"",
+      '你好 means:': '你好 (Nǐ hǎo) nghĩa là:',
+      'What is the correct way to say "I"?': 'Cách đúng để nói "Tôi" là gì?',
+      '谢谢 means:': '谢谢 (Xièxiè) nghĩa là:',
+      'Complete: 我___ 学生 (I am a student)': 'Điền vào chỗ trống: 我___ 学生 (Tôi là học sinh)',
+      'What does 吃饭 mean?': '吃饭 (Chīfàn) nghĩa là gì?',
+      'How do you say "tomorrow"?': 'Bạn nói "ngày mai" như thế nào?',
+      'Complete: 我___ 去学校 (I want to go to school)': 'Điền vào: 我___ 去学校 (Tôi muốn đến trường)',
+      'What is the correct measure word for books?': 'Lượng từ đúng cho sách là gì?',
+      'What does 虽然...但是... structure mean?': 'Cấu trúc 虽然...但是... (Tuy... nhưng...) nghĩa là gì?',
+      'What does 一举两得 mean?': 'Thành ngữ 一举两得 (Nhất cử lưỡng tiện) nghĩa là gì?',
+      '안녕하세요 means:': '안녕하세요 (Annyeonghaseyo) nghĩa là:',
+      '감사합니다 means:': '감사합니다 (Gamsahamnida) nghĩa là:',
+      'Complete: 저는 학생___ (I am a student)': 'Điền vào: 저는 학생___ (Tôi là học sinh)',
+      'What does 먹다 mean?': '먹다 (Meokda) nghĩa là gì?',
+      'Complete: 학교에 ___ (go to school)': 'Điền vào: 학교에 ___ (đi đến trường)',
+      'What is the honorific form of 먹다?': 'Dạng kính ngữ của 먹다 là gì?',
+      'What does -(으)ㄹ 것 같다 express?': 'Cấu trúc -(으)ㄹ 것 같다 diễn tả điều gì?',
+      'What does 금상첨화 mean?': 'Thành ngữ 금상첨화 (Cẩm thượng thiêm hoa) nghĩa là gì?',
+    };
+
+    return Assessment(
+      id: assessment.id,
+      targetLanguage: assessment.targetLanguage,
+      questions: assessment.questions.map((q) {
+        return AssessmentQuestion(
+          id: q.id,
+          questionText: translations[q.questionText] ?? q.questionText,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          difficulty: q.difficulty,
+          category: q.category,
+        );
+      }).toList(),
+    );
   }
 }

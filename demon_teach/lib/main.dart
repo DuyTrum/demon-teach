@@ -45,6 +45,11 @@ import 'package:demon_teach/presentation/providers/speaking_provider.dart';
 import 'package:demon_teach/data/repositories/speaking_repository_impl.dart';
 import 'package:demon_teach/presentation/providers/listening_provider.dart';
 import 'package:demon_teach/data/repositories/listening_repository_impl.dart';
+import 'package:demon_teach/data/datasources/local/sync_local_datasource.dart';
+import 'package:demon_teach/data/datasources/remote/sync_remote_datasource.dart';
+import 'package:demon_teach/data/repositories/sync_repository_impl.dart';
+import 'package:demon_teach/domain/services/sync_manager.dart';
+import 'package:demon_teach/presentation/providers/sync_provider.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -75,42 +80,29 @@ void main() async {
     receiveTimeout: AppConstants.apiTimeout,
   ));
 
-  // Add Auth Interceptor
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await secureStorage.read(key: 'auth_token');
-        print('====== DIO REQUEST ======');
-        print('Path: ${options.path}');
-        print('Token in header: ${token != null ? "PRESENT" : "MISSING"}');
-        
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
+        try {
+          final token = await secureStorage.read(key: 'auth_token');
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+        } catch (e) {
+          // Ignore secure storage errors
         }
         return handler.next(options);
-      },
-      onResponse: (response, handler) {
-        print('====== DIO RESPONSE ======');
-        print('Path: ${response.requestOptions.path}');
-        print('Status: ${response.statusCode}');
-        return handler.next(response);
-      },
-      onError: (DioException e, handler) {
-        print('====== DIO ERROR ======');
-        print('Path: ${e.requestOptions.path}');
-        print('Status Code: ${e.response?.statusCode}');
-        print('Error Data: ${e.response?.data}');
-        print('Error Message: ${e.message}');
-        return handler.next(e);
       },
     ),
   );
 
   // Create data source instances
   final lessonRemoteDataSource = LessonRemoteDataSourceImpl(dio: dio);
+  final syncLocalDataSource = SyncLocalDataSourceImpl();
+  final syncRemoteDataSource = SyncRemoteDataSourceImpl(dio: dio);
 
   // Create repository instances
-  final authRepository = AuthRepositoryImpl(dio, secureStorage);
+  final authRepository = AuthRepositoryImpl(dio, secureStorage, sharedPreferences);
   final learningPathRepository = LearningPathRepositoryImpl(sharedPreferences);
   final lessonRepository =
       LessonRepositoryImpl(sharedPreferences, learningPathRepository, lessonRemoteDataSource);
@@ -127,6 +119,11 @@ void main() async {
       AchievementRepositoryImpl(sharedPreferences, achievementEngine);
   final speakingRepository = SpeakingRepositoryImpl(sharedPreferences);
   final listeningRepository = ListeningRepositoryImpl(sharedPreferences);
+  final syncRepository = SyncRepositoryImpl(
+    localDataSource: syncLocalDataSource,
+    remoteDataSource: syncRemoteDataSource,
+  );
+  final syncManager = SyncManager(syncRepository);
 
   runApp(
     ProviderScope(
@@ -180,6 +177,10 @@ void main() async {
         speakingRepositoryProvider.overrideWithValue(speakingRepository),
         // Override ListeningRepository provider
         listeningRepositoryProvider.overrideWithValue(listeningRepository),
+        // Override SyncRepository provider
+        syncRepositoryProvider.overrideWithValue(syncRepository),
+        // Override SyncManager provider
+        syncManagerProvider.overrideWithValue(syncManager),
       ],
       child: const DemonTeachApp(),
     ),
@@ -201,45 +202,11 @@ class DemonTeachApp extends StatelessWidget {
 }
 
 /// App initializer that determines initial route
-class AppInitializer extends ConsumerStatefulWidget {
+class AppInitializer extends ConsumerWidget {
   const AppInitializer({super.key});
 
   @override
-  ConsumerState<AppInitializer> createState() => _AppInitializerState();
-}
-
-class _AppInitializerState extends ConsumerState<AppInitializer> {
-  @override
-  void initState() {
-    super.initState();
-    // Initial check
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAndLoadPreferences();
-    });
-  }
-
-  void _checkAndLoadPreferences() {
-    final authState = ref.read(authProvider);
-    if (authState.isAuthenticated && authState.user != null) {
-      ref.read(languageProvider.notifier).loadPreferences(authState.user!.id);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Listen for auth changes to load preferences or reset state
-    ref.listen(authProvider, (previous, next) {
-      if (next.isAuthenticated && next.user != null) {
-        if (previous == null || !previous.isAuthenticated) {
-          ref.read(languageProvider.notifier).loadPreferences(next.user!.id);
-        }
-      } else if (!next.isAuthenticated) {
-        // Reset providers on logout
-        ref.read(languageProvider.notifier).reset();
-        ref.read(learningPathProvider.notifier).reset();
-      }
-    });
-
+  Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final languageState = ref.watch(languageProvider);
 

@@ -12,7 +12,7 @@ abstract class LessonRepository {
       {bool includeContent = false});
 
   /// Get lessons by language from remote
-  Future<Result<List<Lesson>>> getLessonsByLanguage(String language, {String? nativeLanguage});
+  Future<Result<List<Lesson>>> getLessonsByLanguage(String language);
 
   /// Get next lesson in learning path
   Future<Result<Lesson?>> getNextLesson({

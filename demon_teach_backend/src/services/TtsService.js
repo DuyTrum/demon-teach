@@ -1,5 +1,3 @@
-const googleTTS = require('google-tts-api');
-
 class TtsService {
   /**
    * Get audio URL for a given text and language
@@ -15,13 +13,7 @@ class TtsService {
         'ko': 'ko'
       };
 
-      const url = googleTTS.getAudioUrl(text, {
-        lang: langMap[language] || 'en',
-        slow: false,
-        host: 'https://translate.google.com',
-      });
-
-      return url;
+      return `/api/tts?text=${encodeURIComponent(text)}&language=${encodeURIComponent(language)}`;
     } catch (error) {
       console.error('Error generating TTS URL:', error.message);
       return null;

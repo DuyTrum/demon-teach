@@ -4,10 +4,13 @@ import 'package:demon_teach/domain/entities/language_preference.dart';
 /// Language repository interface
 abstract class LanguageRepository {
   /// Save language preferences
-  Future<Result<void>> saveLanguagePreferences(String userId, LanguagePreference preference);
+  Future<Result<void>> saveLanguagePreferences(LanguagePreference preference);
 
   /// Get saved language preferences
-  Future<Result<LanguagePreference?>> getLanguagePreferences(String userId);
+  Future<Result<LanguagePreference?>> getLanguagePreferences();
+
+  /// Clear saved language preferences
+  Future<Result<void>> clearLanguagePreferences();
 
   /// Get list of supported target languages
   List<String> getSupportedTargetLanguages();

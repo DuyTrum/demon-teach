@@ -13,11 +13,11 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
   AssessmentRepositoryImpl(this._prefs);
 
   @override
-  Future<Result<Assessment>> getAssessment(String targetLanguage) async {
+  Future<Result<Assessment>> getAssessment(String targetLanguage, String nativeLanguage) async {
     try {
       // Get mock assessment data based on language
       final assessment =
-          MockAssessmentData.getAssessmentByLanguage(targetLanguage);
+          MockAssessmentData.getAssessmentByLanguage(targetLanguage, nativeLanguage: nativeLanguage);
       return Result.success(assessment);
     } catch (e) {
       return Result.failure(CacheFailure(message: e.toString()));

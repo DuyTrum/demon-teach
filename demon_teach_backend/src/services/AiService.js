@@ -48,16 +48,19 @@ class AiService {
     }
   }
 
-  /**
-   * Generates multiple exercises for a specific vocabulary word
-   */
-  async generateExercises(vocabulary, count = 2) {
+  async generateExercises(vocabulary, count = 2, goalType = '') {
     if (!this.apiKey) return [];
+
+    let goalPrompt = '';
+    if (goalType) {
+      goalPrompt = `The user's learning goal is: ${goalType}. Make the exercise question scenario and sentence context directly relevant to this goal (e.g. use professional/office contexts for 'work', tourist/vacation contexts for 'travel', everyday friendship chats for 'conversation', formal/scholarly concepts for 'exam'). `;
+    }
 
     const prompt = `
       Create ${count} different exercises for the ${vocabulary.language} word "${vocabulary.word}".
       Word meaning: ${JSON.stringify(vocabulary.meanings[0])}
       
+      ${goalPrompt}
       Return ONLY a JSON array of objects:
       [
         {

@@ -4,7 +4,7 @@ import 'package:demon_teach/domain/entities/assessment.dart';
 /// Assessment repository interface
 abstract class AssessmentRepository {
   /// Get assessment for a specific language
-  Future<Result<Assessment>> getAssessment(String targetLanguage);
+  Future<Result<Assessment>> getAssessment(String targetLanguage, String nativeLanguage);
 
   /// Save assessment result
   Future<Result<void>> saveAssessmentResult(

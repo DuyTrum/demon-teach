@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// Application-wide constants
 class AppConstants {
   // App Information
@@ -81,7 +84,15 @@ class AppConstants {
   // API
   // Use http://10.0.2.2:3000 for Android Emulator
   // Use http://localhost:3000 for iOS Simulator or Web
-  static const String apiBaseUrl = 'http://10.0.2.2:3000';
+  static String get apiBaseUrl {
+    if (kIsWeb) {
+      return 'http://127.0.0.1:3000';
+    }
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:3000';
+    }
+    return 'http://127.0.0.1:3000';
+  }
   static const Duration apiTimeout = Duration(seconds: 30);
 
   // Cache

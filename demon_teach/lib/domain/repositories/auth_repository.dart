@@ -21,4 +21,10 @@ abstract class AuthRepository {
 
   /// Refresh authentication token
   Future<Result<void>> refreshToken();
+
+  /// Update user profile language preferences
+  Future<Result<User>> updateProfile({
+    String? nativeLanguage,
+    List<String>? targetLanguages,
+  });
 }

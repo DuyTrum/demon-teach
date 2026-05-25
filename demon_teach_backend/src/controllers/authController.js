@@ -66,7 +66,9 @@ exports.login = async (req, res, next) => {
         user: {
           id: user.id,
           email: user.email,
-          role: user.role
+          role: user.role,
+          nativeLanguage: user.nativeLanguage,
+          targetLanguages: user.targetLanguages
         },
         accessToken,
         refreshToken
@@ -82,7 +84,7 @@ exports.login = async (req, res, next) => {
  */
 exports.register = async (req, res, next) => {
   try {
-    const { email, password, role = 'user' } = req.body;
+    const { email, password, role = 'user', nativeLanguage, targetLanguages } = req.body;
 
     // Validate input
     if (!email || !password) {
@@ -114,7 +116,9 @@ exports.register = async (req, res, next) => {
     const user = await User.create({
       email,
       password,
-      role: role === 'admin' ? 'admin' : 'user' // Only allow admin if explicitly set
+      role: role === 'admin' ? 'admin' : 'user', // Only allow admin if explicitly set
+      nativeLanguage,
+      targetLanguages: targetLanguages || []
     });
 
     // Generate tokens
@@ -128,7 +132,9 @@ exports.register = async (req, res, next) => {
         user: {
           id: user.id,
           email: user.email,
-          role: user.role
+          role: user.role,
+          nativeLanguage: user.nativeLanguage,
+          targetLanguages: user.targetLanguages
         },
         accessToken,
         refreshToken
@@ -222,6 +228,50 @@ exports.logout = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Logout successful'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update current user profile
+ */
+exports.updateProfile = async (req, res, next) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const { nativeLanguage, targetLanguages } = req.body;
+
+    if (nativeLanguage !== undefined) {
+      user.nativeLanguage = nativeLanguage;
+    }
+
+    if (targetLanguages !== undefined) {
+      user.targetLanguages = targetLanguages;
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          nativeLanguage: user.nativeLanguage,
+          targetLanguages: user.targetLanguages
+        }
+      }
     });
   } catch (error) {
     next(error);

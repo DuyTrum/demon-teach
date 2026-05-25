@@ -3,12 +3,14 @@ import 'package:demon_teach/domain/entities/sync_status.dart';
 import 'package:demon_teach/domain/entities/progress.dart';
 import 'package:demon_teach/domain/entities/performance_data.dart';
 import 'package:demon_teach/domain/entities/review_item.dart';
+import 'package:demon_teach/domain/repositories/sync_repository.dart';
 
 /// Sync Manager Service
 ///
 /// Orchestrates data synchronization between local and remote storage.
 /// Implements Requirement 19: Data Persistence and Synchronization
 class SyncManager {
+  final SyncRepository _repository;
   final StreamController<SyncStatus> _syncStatusController =
       StreamController<SyncStatus>.broadcast();
 
@@ -16,6 +18,8 @@ class SyncManager {
     userId: '',
     state: SyncState.idle,
   );
+
+  SyncManager(this._repository);
 
   /// Stream of sync status updates
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
@@ -38,20 +42,28 @@ class SyncManager {
     ));
 
     try {
-      // 1. Sync progress data (user → server)
+      // Check online status first
+      final isOnlineResult = await _repository.isOnline();
+      if (isOnlineResult.isFailure || !isOnlineResult.value) {
+        throw Exception('Device is offline');
+      }
+
+      // 1. Sync progress data (user -> server)
       await _syncProgress(userId);
 
-      // 2. Sync performance data (user → server)
+      // 2. Sync performance data (user -> server)
       await _syncPerformance(userId);
 
       // 3. Sync review items (bidirectional)
       await _syncReviews(userId);
 
-      // 4. Fetch new content (server → user)
+      // 4. Fetch new content (server -> user)
       await _syncContent(userId);
 
       // 5. Update sync timestamp
       final now = DateTime.now();
+      await _repository.updateLastSyncTimestamp(userId, now);
+
       _updateStatus(_currentStatus.copyWith(
         state: SyncState.synced,
         lastSyncAt: now,
@@ -67,57 +79,53 @@ class SyncManager {
       ));
 
       // Schedule retry
-      await _scheduleRetry(userId);
+      _scheduleRetry(userId);
 
       return _currentStatus;
     }
   }
 
   /// Sync progress data
-  ///
-  /// Property 22: Local data persistence
   Future<void> _syncProgress(String userId) async {
-    // Get local progress data
-    final localProgress = await _getLocalProgress(userId);
+    final localResult = await _repository.getLocalProgress(userId);
+    if (localResult.isFailure) return;
 
-    for (final progress in localProgress) {
-      if (progress.isDirty) {
-        // Get remote progress
-        final remoteProgress = await _getRemoteProgress(
-          progress.userId,
-          progress.targetLanguage,
+    for (final progress in localResult.value) {
+      // Get remote progress
+      final remoteResult = await _repository.getRemoteProgress(
+        progress.userId,
+        progress.targetLanguage,
+      );
+
+      if (remoteResult.isSuccess && remoteResult.value != null) {
+        // Resolve conflict
+        final resolved = _resolveProgressConflict(
+          local: progress,
+          remote: remoteResult.value!,
         );
 
-        if (remoteProgress != null) {
-          // Resolve conflict
-          final resolved = _resolveProgressConflict(
-            local: progress,
-            remote: remoteProgress,
-          );
+        // Update remote
+        await _repository.updateRemoteProgress(resolved);
 
-          // Update remote
-          await _updateRemoteProgress(resolved);
-
-          // Update local (mark as clean)
-          await _updateLocalProgress(resolved.copyWith(isDirty: false));
-        } else {
-          // No conflict, push local
-          await _updateRemoteProgress(progress);
-          await _updateLocalProgress(progress.copyWith(isDirty: false));
-        }
+        // Update local
+        await _repository.updateLocalProgress(resolved);
+      } else {
+        // No conflict, push local
+        await _repository.updateRemoteProgress(progress);
+        await _repository.updateLocalProgress(progress);
       }
+
+      // Mark as clean
+      final itemId = '${progress.userId}_${progress.targetLanguage}';
+      await _repository.markAsClean(itemId, 'progress');
     }
   }
 
   /// Resolve progress conflict
-  ///
-  /// Property 23: Conflict resolution by timestamp
-  /// Requirement 19.7: Resolve conflicts by most recent timestamp
   Progress _resolveProgressConflict({
     required Progress local,
     required Progress remote,
   }) {
-    // Use most recent data for each field
     return Progress(
       userId: local.userId,
       targetLanguage: local.targetLanguage,
@@ -128,52 +136,37 @@ class SyncManager {
       longestStreak: _max(local.longestStreak, remote.longestStreak),
       lessonsCompleted: _max(local.lessonsCompleted, remote.lessonsCompleted),
       lastLessonDate: _mostRecent(local.lastLessonDate, remote.lastLessonDate),
-      achievements: _mergeAchievements(
-        local.achievements,
-        remote.achievements,
-      ),
-      updatedAt: _mostRecent(local.updatedAt, remote.updatedAt),
-      isDirty: false,
+      createdAt: local.createdAt.isBefore(remote.createdAt)
+          ? local.createdAt
+          : remote.createdAt,
+      updatedAt:
+          _mostRecent(local.updatedAt, remote.updatedAt) ?? DateTime.now(),
     );
   }
 
   /// Sync performance data
   Future<void> _syncPerformance(String userId) async {
-    // Get local performance data
-    final localPerformance = await _getLocalPerformance(userId);
+    final localResult = await _repository.getLocalPerformance(userId);
+    if (localResult.isFailure) return;
 
-    for (final performance in localPerformance) {
-      if (performance.isDirty) {
-        // Push to remote
-        await _updateRemotePerformance(performance);
-
-        // Mark as clean
-        await _updateLocalPerformance(
-          performance.copyWith(isDirty: false),
-        );
-      }
+    for (final performance in localResult.value) {
+      await _repository.updateRemotePerformance(performance);
     }
   }
 
   /// Sync review items (bidirectional)
   Future<void> _syncReviews(String userId) async {
-    // Get local review items
-    final localReviews = await _getLocalReviews(userId);
+    final localResult = await _repository.getLocalReviews(userId);
+    if (localResult.isFailure) return;
 
-    // Get remote review items
-    final remoteReviews = await _getRemoteReviews(userId);
+    final remoteResult = await _repository.getRemoteReviews(userId);
+    if (remoteResult.isFailure) return;
 
-    // Merge review items
-    final mergedReviews = _mergeReviewItems(localReviews, remoteReviews);
+    final mergedReviews = _mergeReviewItems(localResult.value, remoteResult.value);
 
-    // Update local
     for (final review in mergedReviews) {
-      await _updateLocalReview(review);
-    }
-
-    // Update remote
-    for (final review in mergedReviews) {
-      await _updateRemoteReview(review);
+      await _repository.updateLocalReview(review);
+      await _repository.updateRemoteReview(review);
     }
   }
 
@@ -184,15 +177,12 @@ class SyncManager {
   ) {
     final Map<String, ReviewItem> merged = {};
 
-    // Add local items
     for (final item in local) {
       merged[item.id] = item;
     }
 
-    // Merge remote items
     for (final item in remote) {
       if (merged.containsKey(item.id)) {
-        // Resolve conflict - use most recent
         final localItem = merged[item.id]!;
         if (item.updatedAt.isAfter(localItem.updatedAt)) {
           merged[item.id] = item;
@@ -206,153 +196,43 @@ class SyncManager {
   }
 
   /// Sync content updates
-  ///
-  /// Requirement 21.8: Check for new or updated Lesson_Content when online
-  /// Requirement 21.19: Update cached content when newer version available
   Future<void> _syncContent(String userId) async {
-    // Get last content sync timestamp
-    final lastSync = await _getLastContentSync(userId);
+    final lastSyncResult = await _repository.getLastSyncTimestamp(userId);
+    final lastSync = lastSyncResult.isSuccess ? lastSyncResult.value : null;
 
-    // Check for content updates
-    final updates = await _getContentUpdates(lastSync);
+    final updatesResult = await _repository.getContentUpdates(lastSync);
+    if (updatesResult.isFailure) return;
 
-    if (updates.isNotEmpty) {
-      // Download new content
-      for (final content in updates) {
-        await _downloadContent(content);
-      }
-
-      // Update last sync timestamp
-      await _updateLastContentSync(userId, DateTime.now());
+    for (final update in updatesResult.value) {
+      await _repository.saveContentMetadata(update);
     }
   }
 
   /// Schedule retry on failure
-  ///
-  /// Requirement 19.5: Retry automatically when connection restored
-  Future<void> _scheduleRetry(String userId) async {
-    // Wait 30 seconds before retry
-    await Future.delayed(const Duration(seconds: 30));
-
-    // Check if online
-    if (await _isOnline()) {
-      // Retry sync
-      await syncAll(userId);
-    } else {
-      // Schedule another retry
-      await _scheduleRetry(userId);
-    }
+  void _scheduleRetry(String userId) {
+    Future.delayed(const Duration(seconds: 30), () async {
+      final isOnlineResult = await _repository.isOnline();
+      if (isOnlineResult.isSuccess && isOnlineResult.value) {
+        await syncAll(userId);
+      } else {
+        _scheduleRetry(userId);
+      }
+    });
   }
 
-  /// Update sync status
   void _updateStatus(SyncStatus status) {
     _currentStatus = status;
     _syncStatusController.add(status);
   }
 
-  /// Helper methods (placeholders - to be implemented with repositories)
-
-  Future<List<Progress>> _getLocalProgress(String userId) async {
-    // Get from local repository
-    return [];
-  }
-
-  Future<Progress?> _getRemoteProgress(
-    String userId,
-    String targetLanguage,
-  ) async {
-    // Get from remote repository
-    return null;
-  }
-
-  Future<void> _updateRemoteProgress(Progress progress) async {
-    // Update remote repository
-  }
-
-  Future<void> _updateLocalProgress(Progress progress) async {
-    // Update local repository
-  }
-
-  Future<List<PerformanceData>> _getLocalPerformance(String userId) async {
-    // Get from local repository
-    return [];
-  }
-
-  Future<void> _updateRemotePerformance(PerformanceData performance) async {
-    // Update remote repository
-  }
-
-  Future<void> _updateLocalPerformance(PerformanceData performance) async {
-    // Update local repository
-  }
-
-  Future<List<ReviewItem>> _getLocalReviews(String userId) async {
-    // Get from local repository
-    return [];
-  }
-
-  Future<List<ReviewItem>> _getRemoteReviews(String userId) async {
-    // Get from remote repository
-    return [];
-  }
-
-  Future<void> _updateLocalReview(ReviewItem review) async {
-    // Update local repository
-  }
-
-  Future<void> _updateRemoteReview(ReviewItem review) async {
-    // Update remote repository
-  }
-
-  Future<DateTime?> _getLastContentSync(String userId) async {
-    // Get from local repository
-    return null;
-  }
-
-  Future<List<Map<String, dynamic>>> _getContentUpdates(
-    DateTime? lastSync,
-  ) async {
-    // Get from remote repository
-    return [];
-  }
-
-  Future<void> _downloadContent(Map<String, dynamic> content) async {
-    // Download content
-  }
-
-  Future<void> _updateLastContentSync(String userId, DateTime timestamp) async {
-    // Update local repository
-  }
-
-  Future<bool> _isOnline() async {
-    // Check network connectivity
-    return true;
-  }
-
-  /// Helper functions
-
   int _max(int a, int b) => a > b ? a : b;
 
-  DateTime _mostRecent(DateTime a, DateTime b) {
+  DateTime? _mostRecent(DateTime? a, DateTime? b) {
+    if (a == null) return b;
+    if (b == null) return a;
     return a.isAfter(b) ? a : b;
   }
 
-  Map<String, dynamic> _mergeAchievements(
-    Map<String, dynamic> local,
-    Map<String, dynamic> remote,
-  ) {
-    final merged = Map<String, dynamic>.from(local);
-
-    for (final entry in remote.entries) {
-      if (!merged.containsKey(entry.key)) {
-        merged[entry.key] = entry.value;
-      }
-    }
-
-    return merged;
-  }
-
-  /// Dispose resources
   void dispose() {
     _syncStatusController.close();
   }

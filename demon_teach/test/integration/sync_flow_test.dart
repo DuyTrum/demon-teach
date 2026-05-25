@@ -117,11 +117,10 @@ void main() {
       // STEP 5: Sync all data
       // ========================================
       print('\n🔄 Step 5: Syncing all data...');
-      final syncResult = await provider.syncRepository.syncAll('user-1');
+      final syncResult = await provider.syncManager.syncAll('user-1');
 
-      expect(syncResult.isSuccess, true);
-      expect(syncResult.value.state.name, 'synced');
-      print('✅ Sync completed: ${syncResult.value.state}');
+      expect(syncResult.state.name, 'synced');
+      print('✅ Sync completed: ${syncResult.state}');
 
       // ========================================
       // STEP 6: Verify last sync timestamp
@@ -193,10 +192,10 @@ void main() {
       await provider.syncRepository.updateLocalProgress(progress);
       print('✅ Local progress updated');
 
-      // Sync
+      // Sync (using internal _syncProgress logic, here we just do syncAll to achieve it)
       final syncResult =
-          await provider.syncRepository.syncProgress('user-sync');
-      expect(syncResult.isSuccess, true);
+          await provider.syncManager.syncAll('user-sync');
+      expect(syncResult.state.name, 'synced');
       print('✅ Progress synced');
 
       // Verify can retrieve
@@ -281,7 +280,7 @@ void main() {
       );
 
       await provider.syncRepository.updateLocalProgress(progress);
-      await provider.syncRepository.syncAll('user-restart');
+      await provider.syncManager.syncAll('user-restart');
       print('✅ Initial sync completed');
 
       // Simulate restart

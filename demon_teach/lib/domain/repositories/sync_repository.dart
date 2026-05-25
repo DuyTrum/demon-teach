@@ -8,21 +8,6 @@ import 'package:demon_teach/domain/entities/review_item.dart';
 ///
 /// Defines contract for synchronization operations.
 abstract class SyncRepository {
-  /// Sync all data
-  Future<Result<SyncStatus>> syncAll(String userId);
-
-  /// Sync progress data
-  Future<Result<void>> syncProgress(String userId);
-
-  /// Sync performance data
-  Future<Result<void>> syncPerformance(String userId);
-
-  /// Sync review items
-  Future<Result<void>> syncReviews(String userId);
-
-  /// Sync content updates
-  Future<Result<void>> syncContent(String userId);
-
   /// Get sync status
   Future<Result<SyncStatus>> getSyncStatus(String userId);
 
@@ -76,9 +61,12 @@ abstract class SyncRepository {
   /// Update remote review
   Future<Result<void>> updateRemoteReview(ReviewItem review);
 
+  /// Get content updates
+  Future<Result<List<Map<String, dynamic>>>> getContentUpdates(DateTime? lastSync);
+
+  /// Save content metadata
+  Future<Result<void>> saveContentMetadata(Map<String, dynamic> metadata);
+
   /// Check if online
   Future<Result<bool>> isOnline();
-
-  /// Stream of sync status updates
-  Stream<SyncStatus> get syncStatusStream;
 }

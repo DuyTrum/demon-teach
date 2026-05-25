@@ -29,6 +29,7 @@
     "express-validator": "^7.3.2",
     "google-tts-api": "^2.0.2",
     "jsonwebtoken": "^9.0.3",
+    "node-edge-tts": "^1.2.10",
     "pg": "^8.20.0",
     "sequelize": "^6.37.8",
     "sqlite3": "^6.0.1"

@@ -12,13 +12,12 @@ class SaveLanguagePreferences
 
   @override
   Future<Result<void>> call(SaveLanguagePreferencesParams params) async {
-    return await repository.saveLanguagePreferences(params.userId, params.preference);
+    return await repository.saveLanguagePreferences(params.preference);
   }
 }
 
 class SaveLanguagePreferencesParams {
-  final String userId;
   final LanguagePreference preference;
 
-  SaveLanguagePreferencesParams({required this.userId, required this.preference});
+  SaveLanguagePreferencesParams({required this.preference});
 }

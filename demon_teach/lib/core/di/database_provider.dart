@@ -11,6 +11,7 @@ import 'package:demon_teach/data/repositories/download_repository_impl.dart';
 import 'package:demon_teach/data/repositories/sync_repository_impl.dart';
 import 'package:demon_teach/domain/repositories/download_repository.dart';
 import 'package:demon_teach/domain/repositories/sync_repository.dart';
+import 'package:demon_teach/domain/services/sync_manager.dart';
 import 'package:dio/dio.dart';
 
 /// Simple dependency injection for database and repositories
@@ -116,6 +117,12 @@ class DatabaseProvider {
     return _syncRepository!;
   }
 
+  SyncManager? _syncManager;
+  SyncManager get syncManager {
+    _syncManager ??= SyncManager(syncRepository);
+    return _syncManager!;
+  }
+
   /// Reset all instances (useful for testing)
   void reset() {
     _database?.close();
@@ -129,6 +136,8 @@ class DatabaseProvider {
     _syncLocalDataSource = null;
     _syncRemoteDataSource = null;
     _downloadRepository = null;
+    _syncManager?.dispose();
+    _syncManager = null;
     _syncRepository = null;
   }
 
@@ -140,6 +149,8 @@ class DatabaseProvider {
     _syncLocalDataSource = null;
     _syncRemoteDataSource = null;
     _downloadRepository = null;
+    _syncManager?.dispose();
+    _syncManager = null;
     _syncRepository = null;
   }
 
@@ -162,6 +173,8 @@ class DatabaseProvider {
     _downloadRemoteDataSource = null;
     _syncRemoteDataSource = null;
     _downloadRepository = null;
+    _syncManager?.dispose();
+    _syncManager = null;
     _syncRepository = null;
   }
 }

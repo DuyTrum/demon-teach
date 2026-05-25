@@ -7,6 +7,9 @@ import 'package:demon_teach/presentation/providers/language_provider.dart';
 import 'package:demon_teach/presentation/providers/auth_provider.dart';
 import 'package:demon_teach/presentation/widgets/common/custom_button.dart';
 import 'package:demon_teach/presentation/screens/learning_path/learning_path_screen.dart';
+import 'package:demon_teach/presentation/providers/learning_path_provider.dart';
+import 'package:demon_teach/presentation/providers/progress_provider.dart';
+import 'package:demon_teach/presentation/providers/achievement_provider.dart';
 
 class LessonCompletionScreen extends ConsumerStatefulWidget {
   final Lesson lesson;
@@ -60,15 +63,36 @@ class _LessonCompletionScreenState extends ConsumerState<LessonCompletionScreen>
       _isCompleting = true;
     });
 
-    final languageState = ref.read(languageProvider);
     final user = ref.read(authProvider).user;
-    
-    if (languageState.preference == null || user == null) return;
+    final languageState = ref.read(languageProvider);
+    if (user == null || languageState.preference == null) return;
 
+    final targetLanguage = languageState.preference!.targetLanguage;
+
+    // 1. Mark lesson as complete and update current index of learning path on local DB
     await ref.read(lessonProvider.notifier).completeCurrentLesson(
           userId: user.id,
           score: widget.score,
-          targetLanguage: languageState.preference!.targetLanguage,
+          targetLanguage: targetLanguage,
+        );
+
+    // 2. Update overall progress details (totalXP, lessonsCompleted, levels)
+    await ref.read(progressProvider.notifier).updateProgressAfterLesson(
+          userId: user.id,
+          targetLanguage: targetLanguage,
+          score: widget.score,
+        );
+
+    // 3. Reload learning path to ensure we have the next lesson loaded properly
+    await ref.read(learningPathProvider.notifier).loadLearningPath(
+          userId: user.id,
+          targetLanguage: targetLanguage,
+        );
+
+    // 4. Check & Unlock achievements based on the updated progress
+    await ref.read(achievementProvider.notifier).checkAndUnlock(
+          userId: user.id,
+          targetLanguage: targetLanguage,
         );
 
     setState(() {
@@ -149,11 +173,7 @@ class _LessonCompletionScreenState extends ConsumerState<LessonCompletionScreen>
                 CustomButton(
                   text: 'Continue Learning',
                   onPressed: () {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => const LearningPathScreen(),
-                      ),
-                    );
+                    Navigator.of(context).popUntil((route) => route.isFirst);
                   },
                   width: double.infinity,
                   icon: Icons.arrow_forward,

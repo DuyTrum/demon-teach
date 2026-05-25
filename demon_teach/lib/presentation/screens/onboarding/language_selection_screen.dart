@@ -6,9 +6,14 @@ import 'package:demon_teach/presentation/providers/auth_provider.dart';
 import 'package:demon_teach/presentation/widgets/common/custom_button.dart';
 import 'package:demon_teach/presentation/screens/onboarding/assessment_screen.dart';
 
-/// Language selection screen for onboarding
+/// Language selection screen for onboarding or settings
 class LanguageSelectionScreen extends ConsumerStatefulWidget {
-  const LanguageSelectionScreen({super.key});
+  final bool isFromSettings;
+
+  const LanguageSelectionScreen({
+    super.key,
+    this.isFromSettings = false,
+  });
 
   @override
   ConsumerState<LanguageSelectionScreen> createState() =>
@@ -148,22 +153,35 @@ class _LanguageSelectionScreenState
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
-    final user = ref.read(authProvider).user;
-    if (user == null) return;
-
+    // Save preferences locally
     final success = await ref.read(languageProvider.notifier).savePreferences(
-          userId: user.id,
           targetLanguage: selectedTargetLanguage!,
           nativeLanguage: selectedNativeLanguage!,
         );
 
-    if (success && context.mounted) {
-      // Navigate to assessment screen
-      navigator.pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const AssessmentScreen(),
-        ),
-      );
+    if (success) {
+      // Synchronize preferences to backend user profile if user is logged in
+      final user = ref.read(authProvider).user;
+      if (user != null) {
+        await ref.read(authProvider.notifier).updateProfile(
+              nativeLanguage: selectedNativeLanguage!,
+              targetLanguages: [selectedTargetLanguage!],
+            );
+      }
+
+      if (context.mounted) {
+        if (widget.isFromSettings) {
+          // Return to settings/profile
+          navigator.pop(true);
+        } else {
+          // Navigate to assessment screen
+          navigator.pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const AssessmentScreen(),
+            ),
+          );
+        }
+      }
     } else {
       messenger.showSnackBar(
         const SnackBar(

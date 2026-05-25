@@ -2,6 +2,7 @@ import 'package:demon_teach/domain/entities/user.dart';
 import 'package:demon_teach/domain/repositories/auth_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/di/injection_container.dart';
+import 'package:demon_teach/presentation/providers/language_provider.dart';
 
 // Repository provider (to be overridden in main)
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -38,8 +39,9 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
+  final LanguageNotifier _languageNotifier;
 
-  AuthNotifier(this._repository) : super(const AuthState()) {
+  AuthNotifier(this._repository, this._languageNotifier) : super(const AuthState()) {
     checkAuthStatus();
   }
 
@@ -52,6 +54,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       result.when(
         success: (user) {
           state = AuthState(user: user, isAuthenticated: true, isLoading: false);
+          if (user.nativeLanguage.isNotEmpty && user.targetLanguages.isNotEmpty) {
+            _languageNotifier.savePreferences(
+              targetLanguage: user.targetLanguages.first,
+              nativeLanguage: user.nativeLanguage,
+            );
+          } else {
+            _languageNotifier.clearPreferences();
+          }
         },
         failure: (failure) {
           state = AuthState(isAuthenticated: false, isLoading: false, error: failure.message);
@@ -69,6 +79,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return result.when(
       success: (user) {
         state = AuthState(user: user, isAuthenticated: true, isLoading: false);
+        if (user.nativeLanguage.isNotEmpty && user.targetLanguages.isNotEmpty) {
+          _languageNotifier.savePreferences(
+            targetLanguage: user.targetLanguages.first,
+            nativeLanguage: user.nativeLanguage,
+          );
+        } else {
+          _languageNotifier.clearPreferences();
+        }
         return true;
       },
       failure: (failure) {
@@ -85,6 +103,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return result.when(
       success: (user) {
         state = AuthState(user: user, isAuthenticated: true, isLoading: false);
+        if (user.nativeLanguage.isNotEmpty && user.targetLanguages.isNotEmpty) {
+          _languageNotifier.savePreferences(
+            targetLanguage: user.targetLanguages.first,
+            nativeLanguage: user.nativeLanguage,
+          );
+        } else {
+          _languageNotifier.clearPreferences();
+        }
         return true;
       },
       failure: (failure) {
@@ -96,10 +122,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _repository.logout();
+    await _languageNotifier.clearPreferences();
     state = const AuthState(isAuthenticated: false);
+  }
+
+  Future<bool> updateProfile({
+    String? nativeLanguage,
+    List<String>? targetLanguages,
+  }) async {
+    state = state.copyWith(isLoading: true);
+    final result = await _repository.updateProfile(
+      nativeLanguage: nativeLanguage,
+      targetLanguages: targetLanguages,
+    );
+
+    return result.when(
+      success: (user) {
+        state = AuthState(user: user, isAuthenticated: true, isLoading: false);
+        return true;
+      },
+      failure: (failure) {
+        state = state.copyWith(isLoading: false, error: failure.message);
+        return false;
+      },
+    );
   }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(ref.watch(authRepositoryProvider));
+  return AuthNotifier(
+    ref.watch(authRepositoryProvider),
+    ref.read(languageProvider.notifier),
+  );
 });

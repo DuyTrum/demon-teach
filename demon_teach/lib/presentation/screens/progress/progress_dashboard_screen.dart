@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/theme/app_theme.dart';
 import 'package:demon_teach/domain/entities/progress.dart';
+import 'package:demon_teach/domain/entities/achievement.dart';
 import 'package:demon_teach/presentation/providers/progress_provider.dart';
+import 'package:demon_teach/presentation/providers/achievement_provider.dart';
 import 'package:demon_teach/presentation/widgets/common/loading_indicator.dart';
 import 'package:demon_teach/presentation/widgets/common/error_message.dart';
 
@@ -30,6 +32,10 @@ class _ProgressDashboardScreenState
     // Load progress
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(progressProvider.notifier).loadProgress(
+            userId: widget.userId,
+            targetLanguage: widget.targetLanguage,
+          );
+      ref.read(achievementProvider.notifier).loadAchievements(
             userId: widget.userId,
             targetLanguage: widget.targetLanguage,
           );
@@ -86,10 +92,16 @@ class _ProgressDashboardScreenState
 
     return RefreshIndicator(
       onRefresh: () async {
-        await ref.read(progressProvider.notifier).refresh(
-              userId: widget.userId,
-              targetLanguage: widget.targetLanguage,
-            );
+        await Future.wait([
+          ref.read(progressProvider.notifier).refresh(
+                userId: widget.userId,
+                targetLanguage: widget.targetLanguage,
+              ),
+          ref.read(achievementProvider.notifier).refresh(
+                userId: widget.userId,
+                targetLanguage: widget.targetLanguage,
+              ),
+        ]);
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -104,6 +116,8 @@ class _ProgressDashboardScreenState
             _buildStatsGrid(context, state.progress!),
             const SizedBox(height: AppTheme.spacingLg),
             _buildMilestonesCard(context, state.progress!),
+            const SizedBox(height: AppTheme.spacingLg),
+            _buildAchievementsCard(context),
           ],
         ),
       ),
@@ -415,6 +429,75 @@ class _ProgressDashboardScreenState
                 ),
               );
             }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAchievementsCard(BuildContext context) {
+    final achievementState = ref.watch(achievementProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingLg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Achievements',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                Text(
+                  '${achievementState.unlockedCount}/${achievementState.totalAchievements}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spacingMd),
+            if (achievementState.isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (achievementState.achievements.isEmpty)
+              const Text('No achievements available.')
+            else
+              ...achievementState.achievements.map((achievement) {
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: achievement.isUnlocked
+                        ? AppTheme.accentColor.withOpacity(0.2)
+                        : Colors.grey.withOpacity(0.2),
+                    child: Icon(
+                      achievement.isUnlocked ? Icons.emoji_events : Icons.lock,
+                      color: achievement.isUnlocked
+                          ? AppTheme.accentColor
+                          : Colors.grey,
+                    ),
+                  ),
+                  title: Text(
+                    achievement.title,
+                    style: TextStyle(
+                      fontWeight: achievement.isUnlocked
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: achievement.isUnlocked
+                          ? AppTheme.textPrimaryColor
+                          : AppTheme.textSecondaryColor,
+                    ),
+                  ),
+                  subtitle: Text(achievement.description),
+                  trailing: achievement.isUnlocked
+                      ? const Icon(Icons.check_circle,
+                          color: AppTheme.successColor)
+                      : null,
+                );
+              }),
           ],
         ),
       ),

@@ -4,11 +4,13 @@ import 'package:demon_teach/core/theme/app_theme.dart';
 import 'package:demon_teach/domain/entities/lesson.dart';
 import 'package:demon_teach/presentation/providers/lesson_provider.dart';
 import 'package:demon_teach/presentation/providers/language_provider.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:demon_teach/presentation/providers/auth_provider.dart';
 import 'package:demon_teach/presentation/widgets/common/custom_button.dart';
 import 'package:demon_teach/presentation/widgets/common/loading_indicator.dart';
 import 'package:demon_teach/presentation/widgets/common/error_message.dart';
 import 'package:demon_teach/presentation/screens/lesson/lesson_completion_screen.dart';
+import 'package:demon_teach/core/constants/app_constants.dart';
 
 class DailyLessonScreen extends ConsumerStatefulWidget {
   const DailyLessonScreen({super.key});
@@ -20,13 +22,37 @@ class DailyLessonScreen extends ConsumerStatefulWidget {
 class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
   int _currentSectionIndex = 0;
   int _elapsedSeconds = 0;
+  late AudioPlayer _audioPlayer;
 
   @override
   void initState() {
     super.initState();
+    _audioPlayer = AudioPlayer();
     _startTimer();
     // Delay lesson loading to avoid modifying provider during build
     Future.microtask(() => _loadLesson());
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _playAudio(String? url) async {
+    if (url == null || url.isEmpty) return;
+    try {
+      try {
+        await _audioPlayer.setSpeed(1.08); // Slightly faster for an upbeat tempo
+      } catch (_) {}
+      try {
+        await _audioPlayer.setPitch(1.22); // Cute, friendly, high-pitched assistant voice!
+      } catch (_) {}
+      await _audioPlayer.setUrl(url);
+      await _audioPlayer.play();
+    } catch (e) {
+      debugPrint('Error playing audio: $e');
+    }
   }
 
   void _startTimer() {
@@ -41,10 +67,9 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
   }
 
   void _loadLesson() {
-    final languageState = ref.read(languageProvider);
     final user = ref.read(authProvider).user;
-    
-    if (languageState.preference != null && user != null) {
+    final languageState = ref.read(languageProvider);
+    if (user != null && languageState.preference != null) {
       ref.read(lessonProvider.notifier).loadNextLesson(
             userId: user.id,
             targetLanguage: languageState.preference!.targetLanguage,
@@ -268,6 +293,26 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
   }
 
   Widget _buildVocabularyCard(Map<String, dynamic> item) {
+    final word = item['word'] as String;
+    final languageState = ref.read(languageProvider);
+    final targetLang = languageState.preference?.targetLanguage ?? 'en';
+    
+    // Construct direct Google TTS fallback URL if audioUrl is missing/null
+    final langMap = {
+      'en': 'en',
+      'zh': 'zh-CN',
+      'ko': 'ko',
+      'vi': 'vi',
+    };
+    final ttsLang = langMap[targetLang] ?? 'en';
+    
+    var audioUrl = item['audioUrl'] as String?;
+    if (audioUrl != null && audioUrl.startsWith('/')) {
+      audioUrl = '${AppConstants.apiBaseUrl}$audioUrl';
+    } else if (audioUrl == null) {
+      audioUrl = '${AppConstants.apiBaseUrl}/api/tts?text=${Uri.encodeComponent(word)}&language=$targetLang';
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
       child: Padding(
@@ -279,7 +324,7 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    item['word'] as String,
+                    word,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppTheme.primaryColor,
@@ -288,15 +333,7 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.volume_up),
-                  onPressed: () {
-                    // TODO: Play audio pronunciation
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Audio playback coming soon!'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
+                  onPressed: () => _playAudio(audioUrl),
                 ),
               ],
             ),

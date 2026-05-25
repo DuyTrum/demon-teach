@@ -53,7 +53,7 @@ exports.checkUpdates = async (req, res, next) => {
 // Get lessons (with optional filters)
 exports.getLessons = async (req, res, next) => {
   try {
-    const { language, nativeLanguage, since, difficulty, topic, limit = 50 } = req.query;
+    const { language, since, difficulty, topic, limit = 50 } = req.query;
 
     if (!language) {
       return res.status(400).json({
@@ -66,10 +66,6 @@ exports.getLessons = async (req, res, next) => {
       targetLanguage: language,
       isPublished: true
     };
-
-    if (nativeLanguage) {
-      where.nativeLanguage = nativeLanguage;
-    }
 
     // Filter by update time
     if (since) {

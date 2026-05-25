@@ -4,6 +4,7 @@ const { sequelize } = require('../config/database');
 const Lesson = sequelize.define('Lesson', {
   id: {
     type: DataTypes.STRING,
+    defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
   title: {
@@ -22,11 +23,6 @@ const Lesson = sequelize.define('Lesson', {
   targetLanguage: {
     type: DataTypes.ENUM('en', 'zh', 'ko'),
     allowNull: false
-  },
-  nativeLanguage: {
-    type: DataTypes.ENUM('en', 'vi', 'zh', 'ko'),
-    allowNull: false,
-    defaultValue: 'vi'
   },
   durationEstimate: {
     type: DataTypes.INTEGER,

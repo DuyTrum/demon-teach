@@ -23,4 +23,7 @@ router.post('/logout', authenticate, authController.logout);
 // GET /api/auth/me - Get current user
 router.get('/me', authenticate, authController.me);
 
+// PUT /api/auth/profile - Update current user profile
+router.put('/profile', authenticate, authController.updateProfile);
+
 module.exports = router;

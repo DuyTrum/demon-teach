@@ -49,9 +49,21 @@ final dioProvider = Provider<Dio>((ref) {
     error: true,
   ));
 
-  // Add retry interceptor
+  // Add auth interceptor
   dio.interceptors.add(
     InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        try {
+          final storage = ref.read(secureStorageProvider);
+          final token = await storage.read(key: 'auth_token');
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+        } catch (e) {
+          // Ignore storage errors on web
+        }
+        return handler.next(options);
+      },
       onError: (error, handler) async {
         if (error.response?.statusCode == 401) {
           // Handle token refresh here

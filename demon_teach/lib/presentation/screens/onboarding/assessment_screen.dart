@@ -5,6 +5,7 @@ import 'package:demon_teach/presentation/screens/onboarding/assessment_result_sc
 import 'package:demon_teach/presentation/widgets/common/custom_button.dart';
 import 'package:demon_teach/presentation/widgets/common/error_message.dart';
 import 'package:demon_teach/presentation/widgets/common/loading_indicator.dart';
+import 'package:demon_teach/presentation/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,7 +26,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       if (languageState.preference != null) {
         ref
             .read(assessmentProvider.notifier)
-            .loadAssessment(languageState.preference!.targetLanguage);
+            .loadAssessment(
+              languageState.preference!.targetLanguage,
+              languageState.preference!.nativeLanguage,
+            );
       }
     });
   }
@@ -51,7 +55,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
               if (languageState.preference != null) {
                 ref
                     .read(assessmentProvider.notifier)
-                    .loadAssessment(languageState.preference!.targetLanguage);
+                    .loadAssessment(
+                      languageState.preference!.targetLanguage,
+                      languageState.preference!.nativeLanguage,
+                    );
               }
             },
           ),
@@ -182,11 +189,13 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                               null
                           ? () async {
                               if (assessmentState.isLastQuestion) {
+                                final user = ref.read(authProvider).user;
+                                final actualUserId = user?.id ?? 'default_user';
                                 // Submit assessment
                                 await ref
                                     .read(assessmentProvider.notifier)
                                     .submitAssessment(
-                                      'user_1', // TODO: Get actual user ID
+                                      actualUserId,
                                       languageState.preference!.targetLanguage,
                                     );
                               } else {

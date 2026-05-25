@@ -1,10 +1,8 @@
-import 'package:demon_teach/presentation/screens/onboarding/language_selection_screen.dart';
-import 'package:demon_teach/presentation/screens/test/test_menu_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/theme/app_theme.dart';
 import 'package:demon_teach/presentation/providers/auth_provider.dart';
-
+import 'package:demon_teach/presentation/screens/onboarding/language_selection_screen.dart';
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -69,20 +67,7 @@ class ProfileScreen extends ConsumerWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => const LanguageSelectionScreen(),
-                ),
-              );
-            },
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.science, color: AppTheme.secondaryColor),
-            title: const Text('Màn hình Test (Dành cho Dev)'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const TestMenuScreen(),
+                  builder: (_) => const LanguageSelectionScreen(isFromSettings: true),
                 ),
               );
             },
@@ -93,8 +78,18 @@ class ProfileScreen extends ConsumerWidget {
             title: const Text('Cài đặt thông báo'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Tính năng đang phát triển')),
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Cài đặt thông báo'),
+                  content: const Text('Tính năng nhận thông báo học tập hàng ngày đang được hoàn thiện. Vui lòng quay lại sau!'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Đóng'),
+                    ),
+                  ],
+                ),
               );
             },
           ),

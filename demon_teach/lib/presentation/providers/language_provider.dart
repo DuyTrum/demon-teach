@@ -83,12 +83,14 @@ class LanguageNotifier extends StateNotifier<LanguageState> {
   LanguageNotifier({
     required this.saveLanguagePreferencesUseCase,
     required this.getLanguagePreferencesUseCase,
-  }) : super(const LanguageState());
+  }) : super(const LanguageState()) {
+    loadPreferences();
+  }
 
-  Future<void> loadPreferences(String userId) async {
+  Future<void> loadPreferences() async {
     state = state.copyWith(isLoading: true);
 
-    final result = await getLanguagePreferencesUseCase(userId);
+    final result = await getLanguagePreferencesUseCase();
 
     result.when(
       success: (preference) {
@@ -104,7 +106,6 @@ class LanguageNotifier extends StateNotifier<LanguageState> {
   }
 
   Future<bool> savePreferences({
-    required String userId,
     required String targetLanguage,
     required String nativeLanguage,
   }) async {
@@ -116,7 +117,7 @@ class LanguageNotifier extends StateNotifier<LanguageState> {
     );
 
     final result = await saveLanguagePreferencesUseCase(
-      SaveLanguagePreferencesParams(userId: userId, preference: preference),
+      SaveLanguagePreferencesParams(preference: preference),
     );
 
     return result.when(
@@ -135,8 +136,21 @@ class LanguageNotifier extends StateNotifier<LanguageState> {
     );
   }
 
-  void reset() {
-    state = const LanguageState();
+  Future<void> clearPreferences() async {
+    state = state.copyWith(isLoading: true);
+    final result = await saveLanguagePreferencesUseCase.repository.clearLanguagePreferences();
+    result.when(
+      success: (_) {
+        state = const LanguageState(preference: null, isLoading: false);
+      },
+      failure: (failure) {
+        state = LanguageState(
+          preference: state.preference,
+          isLoading: false,
+          error: failure.message,
+        );
+      },
+    );
   }
 }
 

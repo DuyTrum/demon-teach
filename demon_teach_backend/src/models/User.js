@@ -25,6 +25,15 @@ const User = sequelize.define('User', {
     allowNull: false,
     defaultValue: 'user'
   },
+  nativeLanguage: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  targetLanguages: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: []
+  },
   isActive: {
     type: DataTypes.BOOLEAN,
     allowNull: false,

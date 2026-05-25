@@ -202,10 +202,6 @@ class LearningPathNotifier extends StateNotifier<LearningPathState> {
       },
     );
   }
-
-  void reset() {
-    state = const LearningPathState();
-  }
 }
 
 // Learning path provider

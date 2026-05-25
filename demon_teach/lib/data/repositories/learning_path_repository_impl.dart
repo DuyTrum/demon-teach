@@ -27,6 +27,7 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
         targetLanguage: path.targetLanguage,
       );
       final json = jsonEncode(path.toJson());
+      print('--- saveLearningPath KEY: $key ---');
       await _prefs.setString(key, json);
       return Result.success(null);
     } catch (e) {
@@ -43,7 +44,9 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
   }) async {
     try {
       final key = _getKey(userId: userId, targetLanguage: targetLanguage);
+      print('--- getLearningPath KEY: $key ---');
       final jsonString = _prefs.getString(key);
+      print('--- getLearningPath jsonString is null? ${jsonString == null} ---');
 
       if (jsonString == null) {
         return Result.success(null);
