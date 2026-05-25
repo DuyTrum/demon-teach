@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:demon_teach/core/theme/app_theme.dart';
 import 'package:demon_teach/presentation/providers/assessment_provider.dart';
 import 'package:demon_teach/presentation/providers/language_provider.dart';
@@ -8,6 +9,7 @@ import 'package:demon_teach/presentation/widgets/common/loading_indicator.dart';
 import 'package:demon_teach/presentation/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:demon_teach/presentation/widgets/common/demon_background_particles.dart';
 
 class AssessmentScreen extends ConsumerStatefulWidget {
   const AssessmentScreen({super.key});
@@ -41,13 +43,23 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
 
     if (assessmentState.isLoading) {
       return const Scaffold(
+        backgroundColor: AppTheme.demonBgGradientBot,
         body: Center(child: LoadingIndicator()),
       );
     }
 
     if (assessmentState.error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Assessment')),
+        backgroundColor: AppTheme.demonBgGradientBot,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Text('Đánh giá trình độ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
         body: Center(
           child: ErrorMessage(
             message: assessmentState.error!,
@@ -76,6 +88,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         );
       });
       return const Scaffold(
+        backgroundColor: AppTheme.demonBgGradientBot,
         body: Center(child: LoadingIndicator()),
       );
     }
@@ -83,110 +96,188 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     final currentQuestion = assessmentState.currentQuestion;
     if (currentQuestion == null) {
       return const Scaffold(
-        body: Center(child: Text('No questions available')),
+        backgroundColor: AppTheme.demonBgGradientBot,
+        body: Center(child: Text('Không có câu hỏi khả dụng', style: TextStyle(color: Colors.white))),
       );
     }
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: AppTheme.demonBgGradientBot,
       appBar: AppBar(
-        title: const Text('Proficiency Assessment'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Đánh giá trình độ',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
         centerTitle: true,
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Progress bar
-            LinearProgressIndicator(
-              value: assessmentState.progress,
-              backgroundColor: Colors.grey[200],
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                AppTheme.primaryColor,
+      body: Stack(
+        children: [
+          // Gradient
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.demonBgGradientTop,
+                  AppTheme.demonBgGradientMid,
+                  AppTheme.demonBgGradientBot,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
             ),
+          ),
+          // Embers
+          const Positioned.fill(
+            child: DemonBackgroundParticles(),
+          ),
 
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Question number
-                    Text(
-                      'Question ${assessmentState.currentQuestionIndex + 1} of ${assessmentState.assessment!.questions.length}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
+          SafeArea(
+            child: Column(
+              children: [
+                // Progress bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.white.withOpacity(0.05)),
                     ),
-                    const SizedBox(height: 16),
-
-                    // Question text
-                    Card(
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(
-                          currentQuestion.questionText,
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: assessmentState.progress,
+                        backgroundColor: Colors.transparent,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppTheme.demonGlowPurple,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-
-                    // Options
-                    ...currentQuestion.options.map((option) {
-                      final isSelected =
-                          assessmentState.userAnswers[currentQuestion.id] ==
-                              option;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _OptionCard(
-                          option: option,
-                          isSelected: isSelected,
-                          onTap: () {
-                            ref
-                                .read(assessmentProvider.notifier)
-                                .answerQuestion(currentQuestion.id, option);
-                          },
-                        ),
-                      );
-                    }),
-                  ],
+                  ),
                 ),
-              ),
-            ),
 
-            // Navigation buttons
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  // Previous button
-                  if (assessmentState.currentQuestionIndex > 0)
-                    Expanded(
-                      child: CustomButton(
-                        text: 'Previous',
-                        onPressed: () {
-                          ref
-                              .read(assessmentProvider.notifier)
-                              .previousQuestion();
-                        },
-                        isOutlined: true,
-                      ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Question number
+                        Text(
+                          'Câu hỏi ${assessmentState.currentQuestionIndex + 1} / ${assessmentState.assessment!.questions.length}',
+                          style: const TextStyle(
+                            color: AppTheme.demonTextMuted,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Question text
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.demonCardDark.withOpacity(0.7),
+                                AppTheme.demonBgGradientTop.withOpacity(0.4),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: AppTheme.demonGlowPurple.withOpacity(0.2)),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Text(
+                                  currentQuestion.questionText,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Options
+                        ...currentQuestion.options.map((option) {
+                          final userAnswer = assessmentState.userAnswers[currentQuestion.id];
+                          final isAnswered = userAnswer != null;
+                          final isSelected = userAnswer == option;
+                          final isCorrect = option == currentQuestion.correctAnswer;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _OptionCard(
+                              option: option,
+                              isSelected: isSelected,
+                              isCorrect: isCorrect,
+                              isAnswered: isAnswered,
+                              onTap: isAnswered
+                                  ? () {}
+                                  : () {
+                                      ref
+                                          .read(assessmentProvider.notifier)
+                                          .answerQuestion(currentQuestion.id, option);
+                                    },
+                            ),
+                          );
+                        }),
+                      ],
                     ),
-                  if (assessmentState.currentQuestionIndex > 0)
-                    const SizedBox(width: 16),
-
-                  // Next/Submit button
-                  Expanded(
-                    flex: 2,
-                    child: CustomButton(
-                      text: assessmentState.isLastQuestion ? 'Submit' : 'Next',
-                      onPressed: assessmentState
-                                  .userAnswers[currentQuestion.id] !=
-                              null
+                  ),
+                ),
+                               // Action button - Full width
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: assessmentState.userAnswers[currentQuestion.id] != null
+                          ? const LinearGradient(colors: [AppTheme.demonGlowPurple, AppTheme.primaryColor])
+                          : null,
+                      color: assessmentState.userAnswers[currentQuestion.id] != null
+                          ? null
+                          : AppTheme.demonNodeLocked.withOpacity(0.4),
+                      border: Border.all(
+                        color: assessmentState.userAnswers[currentQuestion.id] != null
+                            ? AppTheme.demonGlowPurple.withOpacity(0.5)
+                            : Colors.white.withOpacity(0.05),
+                      ),
+                      boxShadow: assessmentState.userAnswers[currentQuestion.id] != null
+                          ? [
+                              BoxShadow(
+                                color: AppTheme.demonGlowPurple.withOpacity(0.2),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: ElevatedButton(
+                      onPressed: assessmentState.userAnswers[currentQuestion.id] != null
                           ? () async {
                               if (assessmentState.isLastQuestion) {
                                 final user = ref.read(authProvider).user;
@@ -206,13 +297,31 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                               }
                             }
                           : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        assessmentState.isLastQuestion ? 'Nộp bài 😈' : 'Tiếp theo',
+                        style: TextStyle(
+                          color: assessmentState.userAnswers[currentQuestion.id] != null
+                              ? Colors.white
+                              : AppTheme.demonTextMuted,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -221,68 +330,120 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
 class _OptionCard extends StatelessWidget {
   final String option;
   final bool isSelected;
+  final bool isCorrect;
+  final bool isAnswered;
   final VoidCallback onTap;
 
   const _OptionCard({
     required this.option,
     required this.isSelected,
+    required this.isCorrect,
+    required this.isAnswered,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.primaryColor.withOpacity(0.1)
-              : Colors.white,
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryColor : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            // Radio button
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? AppTheme.primaryColor : Colors.grey[400]!,
-                  width: 2,
-                ),
-                color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-              ),
-              child: isSelected
-                  ? const Icon(
-                      Icons.check,
-                      size: 16,
-                      color: Colors.white,
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 16),
+    Color? backgroundColor;
+    Color? borderColor;
+    Color textColor = AppTheme.demonTextLight;
+    BoxShadow? glowShadow;
+    Widget? trailingIcon;
 
-            // Option text
-            Expanded(
-              child: Text(
-                option,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color:
-                          isSelected ? AppTheme.primaryColor : Colors.black87,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.normal,
+    if (isAnswered) {
+      if (isCorrect) {
+        backgroundColor = Colors.green.withOpacity(0.15);
+        borderColor = Colors.green;
+        textColor = Colors.greenAccent;
+        glowShadow = BoxShadow(color: Colors.green.withOpacity(0.2), blurRadius: 10);
+        trailingIcon = const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 24);
+      } else if (isSelected && !isCorrect) {
+        backgroundColor = Colors.redAccent.withOpacity(0.15);
+        borderColor = Colors.redAccent;
+        textColor = Colors.redAccent;
+        glowShadow = BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 10);
+        trailingIcon = const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 24);
+      }
+    } else if (isSelected) {
+      backgroundColor = AppTheme.demonGlowPurple.withOpacity(0.15);
+      borderColor = AppTheme.demonGlowPurple;
+      textColor = Colors.white;
+      glowShadow = BoxShadow(color: AppTheme.demonGlowPurple.withOpacity(0.2), blurRadius: 10);
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor ?? AppTheme.demonCardDark.withOpacity(0.5),
+        border: Border.all(
+          color: borderColor ?? Colors.white.withOpacity(0.1),
+          width: isSelected || (isAnswered && (isCorrect || isSelected)) ? 2 : 1.5,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: glowShadow != null ? [glowShadow] : null,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
+                  children: [
+                    // Radio button glow look
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isAnswered
+                              ? (isCorrect
+                                  ? Colors.green
+                                  : (isSelected ? Colors.redAccent : AppTheme.demonTextMuted))
+                              : (isSelected ? AppTheme.demonGlowPurple : AppTheme.demonTextMuted),
+                          width: 2,
+                        ),
+                        color: isAnswered
+                            ? (isCorrect
+                                ? Colors.green
+                                : (isSelected ? Colors.redAccent : Colors.transparent))
+                            : (isSelected ? AppTheme.demonGlowPurple : Colors.transparent),
+                      ),
+                      child: isSelected || (isAnswered && isCorrect)
+                          ? Icon(
+                              isAnswered && !isCorrect ? Icons.close : Icons.check,
+                              size: 16,
+                              color: Colors.white,
+                            )
+                          : null,
                     ),
+                    const SizedBox(width: 16),
+
+                    // Option text
+                    Expanded(
+                      child: Text(
+                        option,
+                        style: TextStyle(
+                          color: isSelected || (isAnswered && isCorrect) ? Colors.white : textColor,
+                          fontSize: 16,
+                          fontWeight: isSelected || (isAnswered && isCorrect) ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                    if (trailingIcon != null) ...[
+                      const SizedBox(width: 8),
+                      trailingIcon,
+                    ],
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

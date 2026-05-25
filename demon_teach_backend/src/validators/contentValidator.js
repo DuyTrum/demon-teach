@@ -227,9 +227,15 @@ class ContentValidator {
     if (!metadata.durationEstimate) errors.push('metadata: missing required field \'durationEstimate\'');
 
     // Validate difficulty
-    const validDifficulties = ['basic', 'intermediate', 'advanced'];
+    const validDifficulties = ['beginner', 'elementary', 'intermediate', 'upperIntermediate', 'advanced', 'basic'];
     if (metadata.difficulty && !validDifficulties.includes(metadata.difficulty)) {
       errors.push(`metadata: invalid difficulty '${metadata.difficulty}'. Must be one of: ${validDifficulties.join(', ')}`);
+    }
+
+    // Validate category (optional for backwards compatibility, but if present must be valid)
+    const validCategories = ['vocabulary', 'grammar', 'listening', 'speaking', 'reading', 'writing'];
+    if (metadata.category && !validCategories.includes(metadata.category)) {
+      errors.push(`metadata: invalid category '${metadata.category}'. Must be one of: ${validCategories.join(', ')}`);
     }
 
     // Validate targetLanguage

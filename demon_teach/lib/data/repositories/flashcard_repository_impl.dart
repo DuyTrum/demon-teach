@@ -1,15 +1,16 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demon_teach/core/errors/failures.dart';
 import 'package:demon_teach/core/utils/result.dart';
 import 'package:demon_teach/domain/entities/flashcard.dart';
 import 'package:demon_teach/domain/repositories/flashcard_repository.dart';
-import 'package:demon_teach/data/datasources/local/mock_flashcard_data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-/// Implementation of FlashcardRepository using SharedPreferences and mock data
+/// Implementation of FlashcardRepository using Firestore
 class FlashcardRepositoryImpl implements FlashcardRepository {
   final SharedPreferences _prefs;
   static const String _flashcardRatingsKey = 'flashcard_ratings';
+  static const String _fcLessonMappingKeyPrefix = 'fc_lesson_';
 
   FlashcardRepositoryImpl(this._prefs);
 
@@ -17,13 +18,34 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
   Future<Result<List<Flashcard>>> getFlashcardsForLesson(
       String lessonId) async {
     try {
-      // Extract target language from lessonId (format: lesson_en_1, lesson_zh_1, etc.)
-      final parts = lessonId.split('_');
-      final targetLanguage = parts.length > 1 ? parts[1] : 'en';
+      final docSnap = await FirebaseFirestore.instance.collection('lessons').doc(lessonId).get();
+      if (!docSnap.exists || docSnap.data() == null) {
+        return Result.failure(
+          ServerFailure(message: 'Lesson $lessonId not found in Firestore.'),
+        );
+      }
 
-      // Get mock flashcards
-      final flashcards =
-          MockFlashcardData.getFlashcardsForLanguage(lessonId, targetLanguage);
+      final data = docSnap.data()!;
+      final content = data['content'] as Map<String, dynamic>?;
+      if (content == null || content['flashcards'] == null) {
+        return Result.failure(
+          const ServerFailure(message: 'Flashcards are not generated for this lesson.'),
+        );
+      }
+
+      final List<dynamic> flashcardList = content['flashcards'] as List;
+      final flashcards = flashcardList.map((fc) {
+        final fcMap = Map<String, dynamic>.from(fc as Map);
+        if (fcMap['lessonId'] == null) {
+          fcMap['lessonId'] = lessonId;
+        }
+        return Flashcard.fromJson(fcMap);
+      }).toList();
+
+      // Cache flashcardId -> lessonId mapping for later lookups in getFlashcardById
+      for (final fc in flashcards) {
+        await _prefs.setString('$_fcLessonMappingKeyPrefix${fc.id}', lessonId);
+      }
 
       // Load user ratings from SharedPreferences
       final ratingsJson = _prefs.getString(_flashcardRatingsKey);
@@ -49,7 +71,7 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
       return Result.success(flashcardsWithRatings);
     } catch (e) {
       return Result.failure(
-        CacheFailure(message: 'Failed to get flashcards: ${e.toString()}'),
+        ServerFailure(message: 'Failed to get flashcards from Firestore: ${e.toString()}'),
       );
     }
   }
@@ -88,18 +110,13 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
   @override
   Future<Result<Flashcard>> getFlashcardById(String flashcardId) async {
     try {
-      // Extract lessonId from flashcardId (format: fc_en_lessonId_1)
-      final parts = flashcardId.split('_');
-      if (parts.length < 4) {
+      // Look up cached lessonId
+      final lessonId = _prefs.getString('$_fcLessonMappingKeyPrefix$flashcardId');
+      if (lessonId == null) {
         return Result.failure(
-          const ValidationFailure(
-            field: 'flashcardId',
-            message: 'Invalid flashcard ID format',
-          ),
+          const CacheFailure(message: 'Lesson mapping not found for flashcard. Please visit the lesson first.'),
         );
       }
-
-      final lessonId = parts.sublist(2, parts.length - 1).join('_');
 
       // Get all flashcards for the lesson
       final flashcardsResult = await getFlashcardsForLesson(lessonId);
@@ -108,7 +125,7 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
         success: (flashcards) {
           final flashcard = flashcards.firstWhere(
             (fc) => fc.id == flashcardId,
-            orElse: () => throw Exception('Flashcard not found'),
+            orElse: () => throw Exception('Flashcard not found in lesson $lessonId'),
           );
           return Result.success(flashcard);
         },

@@ -1,6 +1,4 @@
-const { Lesson } = require('../models');
-const { sequelize } = require('../config/database');
-const { Op } = require('sequelize');
+const { db } = require('../config/firebase');
 
 /**
  * Content Controller
@@ -19,23 +17,30 @@ exports.checkUpdates = async (req, res, next) => {
       });
     }
 
-    const where = {
-      targetLanguage: language,
-      isPublished: true
-    };
+    if (!db) throw new Error('Firestore is not initialized');
 
-    // If lastSync provided, only get lessons updated after that time
+    let query = db.collection('lessons')
+      .where('targetLanguage', '==', language)
+      .where('isPublished', '==', true);
+
     if (lastSync) {
-      where.updatedAt = {
-        [Op.gt]: new Date(lastSync)
-      };
+      query = query.where('updatedAt', '>', new Date(lastSync).toISOString());
     }
 
-    const updatedLessons = await Lesson.findAll({
-      where,
-      attributes: ['id', 'version', 'updatedAt'],
-      order: [['updatedAt', 'DESC']]
+    const snapshot = await query.get();
+
+    const updatedLessons = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      updatedLessons.push({
+        id: doc.id,
+        version: data.version,
+        updatedAt: data.updatedAt
+      });
     });
+
+    // Sort descending by updatedAt
+    updatedLessons.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
     res.json({
       success: true,
@@ -62,35 +67,33 @@ exports.getLessons = async (req, res, next) => {
       });
     }
 
-    const where = {
-      targetLanguage: language,
-      isPublished: true
-    };
+    if (!db) throw new Error('Firestore is not initialized');
 
-    // Filter by update time
+    let query = db.collection('lessons')
+      .where('targetLanguage', '==', language)
+      .where('isPublished', '==', true);
+
     if (since) {
-      where.updatedAt = {
-        [Op.gt]: new Date(since)
-      };
+      query = query.where('updatedAt', '>', new Date(since).toISOString());
     }
 
-    // Filter by difficulty
     if (difficulty) {
-      where.difficulty = difficulty;
+      query = query.where('difficulty', '==', difficulty);
     }
 
-    // Filter by topic
-    if (topic) {
-      where.topic = {
-        [Op.iLike]: `%${topic}%`
-      };
-    }
+    const snapshot = await query.get();
 
-    const lessons = await Lesson.findAll({
-      where,
-      limit: parseInt(limit),
-      order: [['updatedAt', 'DESC']]
+    let lessons = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (topic && data.topic && !data.topic.toLowerCase().includes(topic.toLowerCase())) {
+        return;
+      }
+      lessons.push({ id: doc.id, ...data });
     });
+
+    lessons.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    lessons = lessons.slice(0, parseInt(limit));
 
     res.json({
       success: true,
@@ -109,14 +112,11 @@ exports.getLessonById = async (req, res, next) => {
   try {
     const { lessonId } = req.params;
 
-    const lesson = await Lesson.findOne({
-      where: {
-        id: lessonId,
-        isPublished: true
-      }
-    });
+    if (!db) throw new Error('Firestore is not initialized');
 
-    if (!lesson) {
+    const doc = await db.collection('lessons').doc(lessonId).get();
+
+    if (!doc.exists || !doc.data().isPublished) {
       return res.status(404).json({
         success: false,
         message: 'Lesson not found or not published'
@@ -125,7 +125,7 @@ exports.getLessonById = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: lesson
+      data: { id: doc.id, ...doc.data() }
     });
   } catch (error) {
     next(error);
@@ -144,16 +144,32 @@ exports.getLessonsByDifficulty = async (req, res, next) => {
       });
     }
 
-    const lessons = await Lesson.findAll({
-      where: {
-        targetLanguage: language,
-        difficulty,
-        isPublished: true
-      },
-      limit: parseInt(limit),
-      order: [['createdAt', 'ASC']],
-      attributes: ['id', 'title', 'difficulty', 'topic', 'targetLanguage', 'durationEstimate', 'version']
+    if (!db) throw new Error('Firestore is not initialized');
+
+    const snapshot = await db.collection('lessons')
+      .where('targetLanguage', '==', language)
+      .where('difficulty', '==', difficulty)
+      .where('isPublished', '==', true)
+      .get();
+
+    let lessons = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      lessons.push({
+        id: doc.id,
+        title: data.title,
+        difficulty: data.difficulty,
+        topic: data.topic,
+        category: data.category,
+        targetLanguage: data.targetLanguage,
+        durationEstimate: data.durationEstimate,
+        version: data.version,
+        createdAt: data.createdAt
+      });
     });
+
+    lessons.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    lessons = lessons.slice(0, parseInt(limit));
 
     res.json({
       success: true,
@@ -179,22 +195,41 @@ exports.getRandomLessons = async (req, res, next) => {
       });
     }
 
-    const where = {
-      targetLanguage: language,
-      isPublished: true
-    };
+    if (!db) throw new Error('Firestore is not initialized');
+
+    let query = db.collection('lessons')
+      .where('targetLanguage', '==', language)
+      .where('isPublished', '==', true);
 
     if (difficulty) {
-      where.difficulty = difficulty;
+      query = query.where('difficulty', '==', difficulty);
     }
 
-    // Get random lessons using ORDER BY RANDOM()
-    const lessons = await Lesson.findAll({
-      where,
-      limit: parseInt(count),
-      order: sequelize.random(),
-      attributes: ['id', 'title', 'difficulty', 'topic', 'targetLanguage', 'durationEstimate', 'version', 'content']
+    const snapshot = await query.get();
+
+    let lessons = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      lessons.push({
+        id: doc.id,
+        title: data.title,
+        difficulty: data.difficulty,
+        topic: data.topic,
+        category: data.category,
+        targetLanguage: data.targetLanguage,
+        durationEstimate: data.durationEstimate,
+        version: data.version,
+        content: data.content
+      });
     });
+
+    // Shuffle and pick
+    for (let i = lessons.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [lessons[i], lessons[j]] = [lessons[j], lessons[i]];
+    }
+
+    lessons = lessons.slice(0, parseInt(count));
 
     res.json({
       success: true,

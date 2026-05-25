@@ -1,12 +1,17 @@
 .header {
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-glow);
   padding: 0 30px;
   height: 64px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .header-left {
@@ -16,10 +21,14 @@
 
 .header-title {
   font-size: 24px;
-  font-weight: 600;
-  color: #667eea;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--neon-purple) 0%, var(--blood-red) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   margin: 0;
   cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .header-nav {
@@ -29,20 +38,22 @@
 }
 
 .nav-link {
-  background: none;
-  border: none;
-  color: #666;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  padding: 8px 12px;
+  padding: 8px 16px;
   border-radius: 6px;
   transition: all 0.2s;
 }
 
 .nav-link:hover {
-  background: #f0f4ff;
-  color: #667eea;
+  background: rgba(176, 66, 255, 0.1);
+  color: var(--neon-purple);
+  border-color: rgba(176, 66, 255, 0.3);
+  box-shadow: 0 0 10px rgba(176, 66, 255, 0.2);
 }
 
 .header-right {
@@ -52,22 +63,23 @@
 }
 
 .user-email {
-  color: #666;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
 .btn-logout {
   padding: 8px 16px;
-  background: #f5f5f5;
-  border: 1px solid #ddd;
+  background: rgba(255, 59, 59, 0.1);
+  border: 1px solid var(--blood-red);
   border-radius: 6px;
-  color: #333;
+  color: var(--blood-red);
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-logout:hover {
-  background: #e0e0e0;
-  border-color: #ccc;
+  background: rgba(255, 59, 59, 0.2);
+  box-shadow: 0 0 10px rgba(255, 59, 59, 0.3);
 }

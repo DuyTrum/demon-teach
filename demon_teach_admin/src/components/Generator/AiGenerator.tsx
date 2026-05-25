@@ -10,7 +10,8 @@ const AiGenerator: React.FC = () => {
   const [params, setParams] = useState<GenerateLessonParams>({
     topic: '',
     language: 'zh',
-    difficulty: 'basic',
+    difficulty: 'beginner',
+    category: 'vocabulary',
   });
 
   const [generatedLesson, setGeneratedLesson] = useState<any>(null);
@@ -77,9 +78,26 @@ const AiGenerator: React.FC = () => {
               value={params.difficulty}
               onChange={(e) => setParams({ ...params, difficulty: e.target.value as any })}
             >
-              <option value="basic">Basic (Beginner)</option>
+              <option value="beginner">Beginner</option>
+              <option value="elementary">Elementary</option>
               <option value="intermediate">Intermediate</option>
+              <option value="upperIntermediate">Upper Intermediate</option>
               <option value="advanced">Advanced</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Focus Category</label>
+            <select
+              value={params.category}
+              onChange={(e) => setParams({ ...params, category: e.target.value as any })}
+            >
+              <option value="vocabulary">Vocabulary & Phrases</option>
+              <option value="grammar">Grammar Structures</option>
+              <option value="listening">Listening & Dialogue</option>
+              <option value="speaking">Speaking Practice</option>
+              <option value="reading">Reading Comprehension</option>
+              <option value="writing">Writing & Spelling</option>
             </select>
           </div>
 

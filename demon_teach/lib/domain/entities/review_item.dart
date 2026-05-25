@@ -9,11 +9,11 @@ enum ReviewItemType {
   String get displayName {
     switch (this) {
       case ReviewItemType.flashcard:
-        return 'Flashcard';
+        return 'Thẻ từ';
       case ReviewItemType.quiz:
-        return 'Quiz';
+        return 'Trắc nghiệm';
       case ReviewItemType.listening:
-        return 'Listening';
+        return 'Luyện nghe';
     }
   }
 }

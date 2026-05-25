@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:demon_teach/core/theme/app_theme.dart';
 import 'package:demon_teach/domain/entities/assessment.dart';
 import 'package:demon_teach/presentation/providers/assessment_provider.dart';
@@ -5,6 +6,7 @@ import 'package:demon_teach/presentation/screens/onboarding/goal_configuration_s
 import 'package:demon_teach/presentation/widgets/common/custom_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:demon_teach/presentation/widgets/common/demon_background_particles.dart';
 
 class AssessmentResultScreen extends ConsumerWidget {
   const AssessmentResultScreen({super.key});
@@ -16,173 +18,286 @@ class AssessmentResultScreen extends ConsumerWidget {
 
     if (result == null) {
       return const Scaffold(
-        body: Center(child: Text('No result available')),
+        backgroundColor: AppTheme.demonBgGradientBot,
+        body: Center(
+          child: Text(
+            'Không có kết quả khả dụng',
+            style: TextStyle(color: Colors.white, fontSize: 16),
+          ),
+        ),
       );
     }
 
+    final proficiencyColor = _getProficiencyColor(result.proficiencyLevel);
+
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 40),
-
-              // Success icon
-              Center(
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: _getProficiencyColor(result.proficiencyLevel)
-                        .withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.emoji_events,
-                    size: 60,
-                    color: _getProficiencyColor(result.proficiencyLevel),
-                  ),
-                ),
+      backgroundColor: AppTheme.demonBgGradientBot,
+      body: Stack(
+        children: [
+          // Background Gradient
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.demonBgGradientTop,
+                  AppTheme.demonBgGradientMid,
+                  AppTheme.demonBgGradientBot,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-              const SizedBox(height: 32),
+            ),
+          ),
+          // Embers
+          const Positioned.fill(
+            child: DemonBackgroundParticles(),
+          ),
 
-              // Title
-              Text(
-                'Assessment Complete!',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 40),
 
-              // Proficiency level
-              Text(
-                'Your Level: ${result.proficiencyLevel.displayName}',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: _getProficiencyColor(result.proficiencyLevel),
-                      fontWeight: FontWeight.bold,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 40),
-
-              // Score card
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      // Score percentage
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Score',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          Text(
-                            '${result.score.toStringAsFixed(1)}%',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryColor,
-                                ),
-                          ),
+                  // Success icon
+                  Center(
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: proficiencyColor.withOpacity(0.25),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: proficiencyColor.withOpacity(0.6), width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: proficiencyColor.withOpacity(0.4),
+                            blurRadius: 25,
+                            spreadRadius: 2,
+                          )
                         ],
                       ),
-                      const SizedBox(height: 16),
-
-                      // Correct answers
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Correct Answers',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          Text(
-                            '${result.correctAnswers} / ${result.totalQuestions}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ],
+                      child: Icon(
+                        Icons.emoji_events_rounded,
+                        size: 60,
+                        color: Colors.white,
                       ),
-                      const SizedBox(height: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
 
-                      // Progress bar
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: result.percentage / 100,
-                          minHeight: 12,
-                          backgroundColor: Colors.grey[200],
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            _getProficiencyColor(result.proficiencyLevel),
-                          ),
+                  // Title
+                  const Text(
+                    'Đánh Giá Hoàn Tất! 😈',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                      shadows: [
+                        Shadow(color: AppTheme.demonGlowPurple, blurRadius: 15),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Proficiency level
+                  Text(
+                    'Trình độ của bạn: ${result.proficiencyLevel.displayName}',
+                    style: TextStyle(
+                      color: proficiencyColor,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(color: proficiencyColor.withOpacity(0.5), blurRadius: 10),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Score card (Glassmorphic)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppTheme.demonCardDark.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: AppTheme.demonGlowPurple.withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          children: [
+                            // Score percentage
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Điểm số',
+                                  style: TextStyle(
+                                    color: AppTheme.demonTextLight,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  '${result.score.toStringAsFixed(1)}%',
+                                  style: TextStyle(
+                                    color: proficiencyColor,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Correct answers
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Câu trả lời đúng',
+                                  style: TextStyle(
+                                    color: AppTheme.demonTextLight,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  '${result.correctAnswers} / ${result.totalQuestions}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Progress bar
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: proficiencyColor.withOpacity(0.2),
+                                      blurRadius: 8,
+                                    )
+                                  ],
+                                ),
+                                child: LinearProgressIndicator(
+                                  value: result.percentage / 100,
+                                  minHeight: 12,
+                                  backgroundColor: Colors.black.withOpacity(0.3),
+                                  valueColor: AlwaysStoppedAnimation<Color>(proficiencyColor),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Level description
-              Card(
-                color: _getProficiencyColor(result.proficiencyLevel)
-                    .withOpacity(0.1),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _getLevelTitle(result.proficiencyLevel),
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color:
-                                  _getProficiencyColor(result.proficiencyLevel),
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _getLevelDescription(result.proficiencyLevel),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const Spacer(),
-
-              // Continue button
-              CustomButton(
-                text: 'Continue to Learning Goals',
-                onPressed: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => const GoalConfigurationScreen(),
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Level description (Glassmorphic & Themed according to level)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: proficiencyColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: proficiencyColor.withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _getLevelTitle(result.proficiencyLevel),
+                              style: TextStyle(
+                                color: proficiencyColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _getLevelDescription(result.proficiencyLevel),
+                              style: const TextStyle(
+                                color: AppTheme.demonTextLight,
+                                fontSize: 14,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // Continue button
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.demonGlowPurple, AppTheme.primaryColor],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.demonGlowPurple.withOpacity(0.25),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => const GoalConfigurationScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        'Thiết lập mục tiêu học tập 😈',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -190,33 +305,33 @@ class AssessmentResultScreen extends ConsumerWidget {
   Color _getProficiencyColor(ProficiencyLevel level) {
     switch (level) {
       case ProficiencyLevel.basic:
-        return Colors.orange;
+        return Colors.orangeAccent;
       case ProficiencyLevel.intermediate:
-        return Colors.blue;
+        return AppTheme.demonGlowPurple;
       case ProficiencyLevel.advanced:
-        return Colors.green;
+        return AppTheme.demonGlowGreen;
     }
   }
 
   String _getLevelTitle(ProficiencyLevel level) {
     switch (level) {
       case ProficiencyLevel.basic:
-        return 'Basic Level';
+        return 'Cấp Độ Sơ Cấp (Basic)';
       case ProficiencyLevel.intermediate:
-        return 'Intermediate Level';
+        return 'Cấp Độ Trung Cấp (Intermediate)';
       case ProficiencyLevel.advanced:
-        return 'Advanced Level';
+        return 'Cấp Độ Cao Cấp (Advanced)';
     }
   }
 
   String _getLevelDescription(ProficiencyLevel level) {
     switch (level) {
       case ProficiencyLevel.basic:
-        return 'You\'re just getting started! We\'ll focus on building your foundation with essential vocabulary and basic grammar.';
+        return 'Bạn mới bắt đầu hành trình! Chúng tôi sẽ tập trung xây dựng nền tảng vững chắc với các từ vựng thiết yếu và ngữ pháp cơ bản nhất.';
       case ProficiencyLevel.intermediate:
-        return 'Great progress! You have a solid foundation. We\'ll help you expand your skills with more complex conversations and grammar.';
+        return 'Tiến bộ tuyệt vời! Bạn đã có một nền tảng khá tốt. Chúng tôi sẽ giúp bạn mở rộng kỹ năng với các hội thoại phức tạp hơn và ngữ pháp chuyên sâu.';
       case ProficiencyLevel.advanced:
-        return 'Excellent! You have strong language skills. We\'ll challenge you with advanced topics and help you achieve fluency.';
+        return 'Xuất sắc! Bạn sở hữu kỹ năng ngôn ngữ rất mạnh mẽ. Chúng tôi sẽ thử thách bạn với các chủ đề nâng cao để giúp bạn đạt tới sự trôi chảy tuyệt đối.';
     }
   }
 }

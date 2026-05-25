@@ -101,16 +101,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final result = await _repository.register(email, password, nativeLanguage);
 
     return result.when(
-      success: (user) {
-        state = AuthState(user: user, isAuthenticated: true, isLoading: false);
-        if (user.nativeLanguage.isNotEmpty && user.targetLanguages.isNotEmpty) {
-          _languageNotifier.savePreferences(
-            targetLanguage: user.targetLanguages.first,
-            nativeLanguage: user.nativeLanguage,
-          );
-        } else {
-          _languageNotifier.clearPreferences();
-        }
+      success: (user) async {
+        // Sign out immediately to redirect to login as requested by the user
+        await _repository.logout();
+        state = const AuthState(isAuthenticated: false, isLoading: false);
         return true;
       },
       failure: (failure) {

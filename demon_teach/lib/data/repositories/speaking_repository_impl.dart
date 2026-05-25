@@ -1,85 +1,78 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:demon_teach/core/utils/result.dart';
 import 'package:demon_teach/core/errors/failures.dart';
 import 'package:demon_teach/domain/entities/speaking_exercise.dart';
 import 'package:demon_teach/domain/repositories/speaking_repository.dart';
 
-/// Implementation of SpeakingRepository using SharedPreferences
+/// Implementation of SpeakingRepository using Firestore and local cache for recordings
 class SpeakingRepositoryImpl implements SpeakingRepository {
   final SharedPreferences _prefs;
 
   static const String _keyPrefix = 'speaking_exercise_';
-  static const String _mockDataKey = 'speaking_mock_data';
 
-  SpeakingRepositoryImpl(this._prefs) {
-    _initializeMockData();
-  }
-
-  /// Initialize mock data for testing
-  void _initializeMockData() {
-    final mockDataExists = _prefs.containsKey(_mockDataKey);
-    if (!mockDataExists) {
-      // Create mock speaking exercises for testing
-      final mockExercises = [
-        SpeakingExercise(
-          id: 'speaking_en_001',
-          lessonId: 'en_basic_vocab_001',
-          phrase: 'Hello, how are you?',
-          modelAudioUrl: 'https://example.com/audio/hello_how_are_you.mp3',
-        ),
-        SpeakingExercise(
-          id: 'speaking_en_002',
-          lessonId: 'en_basic_vocab_001',
-          phrase: 'Nice to meet you',
-          modelAudioUrl: 'https://example.com/audio/nice_to_meet_you.mp3',
-        ),
-        SpeakingExercise(
-          id: 'speaking_en_003',
-          lessonId: 'en_basic_vocab_001',
-          phrase: 'Thank you very much',
-          modelAudioUrl: 'https://example.com/audio/thank_you.mp3',
-        ),
-      ];
-
-      // Save mock exercises
-      for (final exercise in mockExercises) {
-        _prefs.setString(
-          '$_keyPrefix${exercise.id}',
-          jsonEncode(exercise.toJson()),
-        );
-      }
-
-      _prefs.setBool(_mockDataKey, true);
-    }
-  }
+  SpeakingRepositoryImpl(this._prefs);
 
   @override
   Future<Result<SpeakingExercise>> getSpeakingExercise(String lessonId) async {
     try {
-      // Find first speaking exercise for this lesson
-      final keys = _prefs.getKeys();
-      for (final key in keys) {
-        if (key.startsWith(_keyPrefix)) {
-          final jsonString = _prefs.getString(key);
-          if (jsonString != null) {
-            final json = jsonDecode(jsonString) as Map<String, dynamic>;
-            final exercise = SpeakingExercise.fromJson(json);
-            if (exercise.lessonId == lessonId) {
-              return Result.success(exercise);
-            }
-          }
-        }
+      final cleanLessonId = lessonId.replaceAll('speaking_exercise_', '').replaceAll('speaking_', '');
+      final localKey = '$_keyPrefix$cleanLessonId';
+
+      // Check if we have a locally cached progress version containing recordings or feedback
+      final jsonString = _prefs.getString(localKey);
+      if (jsonString != null) {
+        final json = jsonDecode(jsonString) as Map<String, dynamic>;
+        return Result.success(SpeakingExercise.fromJson(json));
       }
 
-      return Result.failure(
-        CacheFailure(
-            message: 'No speaking exercise found for lesson: $lessonId'),
+      // Fetch from Firestore
+      final docSnap = await FirebaseFirestore.instance.collection('lessons').doc(cleanLessonId).get();
+      if (!docSnap.exists || docSnap.data() == null) {
+        return Result.failure(
+          ServerFailure(message: 'Lesson $cleanLessonId not found in Firestore.'),
+        );
+      }
+
+      final data = docSnap.data()!;
+      final content = data['content'] as Map<String, dynamic>?;
+      if (content == null || content['sections'] == null) {
+        return Result.failure(
+          const ServerFailure(message: 'Lesson content sections are missing.'),
+        );
+      }
+
+      final List<dynamic> sections = content['sections'] as List;
+      final speakingSection = sections.firstWhere(
+        (s) => s['type'] == 'speaking',
+        orElse: () => null,
       );
+
+      if (speakingSection == null || speakingSection['items'] == null || (speakingSection['items'] as List).isEmpty) {
+        return Result.failure(
+          const ServerFailure(message: 'Speaking exercises are not generated for this lesson.'),
+        );
+      }
+
+      final firstItem = speakingSection['items'][0] as Map<String, dynamic>;
+      final phrase = firstItem['phrase'] as String;
+      final audioUrl = firstItem['audioUrl'] as String? ?? '';
+
+      final exercise = SpeakingExercise(
+        id: 'speaking_$cleanLessonId',
+        lessonId: cleanLessonId,
+        phrase: phrase,
+        modelAudioUrl: audioUrl,
+      );
+
+      // Save initial state locally
+      await _prefs.setString(localKey, jsonEncode(exercise.toJson()));
+
+      return Result.success(exercise);
     } catch (e) {
       return Result.failure(
-        CacheFailure(
-            message: 'Failed to get speaking exercise: ${e.toString()}'),
+        ServerFailure(message: 'Failed to get speaking exercise: ${e.toString()}'),
       );
     }
   }
@@ -90,17 +83,21 @@ class SpeakingRepositoryImpl implements SpeakingRepository {
     String recordingPath,
   ) async {
     try {
-      final key = '$_keyPrefix$exerciseId';
-      final jsonString = _prefs.getString(key);
+      final cleanLessonId = exerciseId.replaceAll('speaking_exercise_', '').replaceAll('speaking_', '');
+      final localKey = '$_keyPrefix$cleanLessonId';
+      final jsonString = _prefs.getString(localKey);
 
+      SpeakingExercise exercise;
       if (jsonString == null) {
-        return Result.failure(
-          CacheFailure(message: 'Speaking exercise not found: $exerciseId'),
+        final loadResult = await getSpeakingExercise(cleanLessonId);
+        exercise = await loadResult.when(
+          success: (ex) => ex,
+          failure: (f) => throw Exception(f.message),
         );
+      } else {
+        final json = jsonDecode(jsonString) as Map<String, dynamic>;
+        exercise = SpeakingExercise.fromJson(json);
       }
-
-      final json = jsonDecode(jsonString) as Map<String, dynamic>;
-      final exercise = SpeakingExercise.fromJson(json);
 
       // Update with recording path and timestamp
       final updatedExercise = exercise.copyWith(
@@ -110,7 +107,7 @@ class SpeakingRepositoryImpl implements SpeakingRepository {
 
       // Save updated exercise
       await _prefs.setString(
-        key,
+        localKey,
         jsonEncode(updatedExercise.toJson()),
       );
 
@@ -128,17 +125,21 @@ class SpeakingRepositoryImpl implements SpeakingRepository {
     PronunciationFeedback feedback,
   ) async {
     try {
-      final key = '$_keyPrefix$exerciseId';
-      final jsonString = _prefs.getString(key);
+      final cleanLessonId = exerciseId.replaceAll('speaking_exercise_', '').replaceAll('speaking_', '');
+      final localKey = '$_keyPrefix$cleanLessonId';
+      final jsonString = _prefs.getString(localKey);
 
+      SpeakingExercise exercise;
       if (jsonString == null) {
-        return Result.failure(
-          CacheFailure(message: 'Speaking exercise not found: $exerciseId'),
+        final loadResult = await getSpeakingExercise(cleanLessonId);
+        exercise = await loadResult.when(
+          success: (ex) => ex,
+          failure: (f) => throw Exception(f.message),
         );
+      } else {
+        final json = jsonDecode(jsonString) as Map<String, dynamic>;
+        exercise = SpeakingExercise.fromJson(json);
       }
-
-      final json = jsonDecode(jsonString) as Map<String, dynamic>;
-      final exercise = SpeakingExercise.fromJson(json);
 
       // Update with feedback
       final updatedExercise = exercise.copyWith(
@@ -147,7 +148,7 @@ class SpeakingRepositoryImpl implements SpeakingRepository {
 
       // Save updated exercise
       await _prefs.setString(
-        key,
+        localKey,
         jsonEncode(updatedExercise.toJson()),
       );
 
@@ -162,13 +163,12 @@ class SpeakingRepositoryImpl implements SpeakingRepository {
   @override
   Future<Result<void>> deleteRecording(String exerciseId) async {
     try {
-      final key = '$_keyPrefix$exerciseId';
-      final jsonString = _prefs.getString(key);
+      final cleanLessonId = exerciseId.replaceAll('speaking_exercise_', '').replaceAll('speaking_', '');
+      final localKey = '$_keyPrefix$cleanLessonId';
+      final jsonString = _prefs.getString(localKey);
 
       if (jsonString == null) {
-        return Result.failure(
-          CacheFailure(message: 'Speaking exercise not found: $exerciseId'),
-        );
+        return Result.success(null);
       }
 
       final json = jsonDecode(jsonString) as Map<String, dynamic>;
@@ -183,7 +183,7 @@ class SpeakingRepositoryImpl implements SpeakingRepository {
 
       // Save updated exercise
       await _prefs.setString(
-        key,
+        localKey,
         jsonEncode(updatedExercise.toJson()),
       );
 

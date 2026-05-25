@@ -1,5 +1,6 @@
 import 'package:demon_teach/domain/entities/learning_path.dart';
 import 'package:demon_teach/domain/entities/assessment.dart';
+import 'package:demon_teach/domain/entities/lesson.dart';
 import 'package:demon_teach/domain/entities/learning_goal.dart';
 import 'package:uuid/uuid.dart';
 
@@ -19,16 +20,18 @@ class LearningPathGenerator {
     required String targetLanguage,
     required ProficiencyLevel proficiencyLevel,
     required GoalType goalType,
+    required List<Lesson> availableLessons,
   }) {
     // Get lesson IDs based on proficiency and goal
     final lessonIds = _selectLessons(
+      availableLessons: availableLessons,
       targetLanguage: targetLanguage,
       proficiencyLevel: proficiencyLevel,
       goalType: goalType,
     );
 
     return LearningPath(
-      id: _uuid.v4(),
+      id: 'user_${userId}_$targetLanguage',
       userId: userId,
       targetLanguage: targetLanguage,
       proficiencyLevel: proficiencyLevel,
@@ -43,6 +46,7 @@ class LearningPathGenerator {
   /// Preserves history by keeping completed lessons
   LearningPath regeneratePath({
     required LearningPath currentPath,
+    required List<Lesson> availableLessons,
     ProficiencyLevel? newProficiencyLevel,
     GoalType? newGoalType,
   }) {
@@ -52,6 +56,7 @@ class LearningPathGenerator {
 
     // Get new lesson IDs
     final newLessonIds = _selectLessons(
+      availableLessons: availableLessons,
       targetLanguage: currentPath.targetLanguage,
       proficiencyLevel: proficiencyLevel,
       goalType: goalType,
@@ -77,104 +82,82 @@ class LearningPathGenerator {
 
   /// Select lessons based on proficiency level and goal type
   List<String> _selectLessons({
+    required List<Lesson> availableLessons,
     required String targetLanguage,
     required ProficiencyLevel proficiencyLevel,
     required GoalType goalType,
   }) {
-    // Get base lessons for proficiency level
-    final baseLessons = _getLessonsForProficiency(
-      targetLanguage: targetLanguage,
-      proficiencyLevel: proficiencyLevel,
-    );
+    // Filter base lessons for proficiency level
+    final baseLessons = availableLessons.where((lesson) {
+      // Map lesson difficulty to proficiency level
+      final diffStr = lesson.metadata.difficulty.name;
+      final lessonProficiency = _mapDifficultyToProficiency(diffStr);
+      return lessonProficiency == proficiencyLevel || diffStr.isEmpty;
+    }).toList();
+
+    // If no lessons matched the level, fallback to all available
+    final listToPrioritize = baseLessons.isNotEmpty ? baseLessons : availableLessons;
 
     // Prioritize lessons based on goal type
     final prioritizedLessons = _prioritizeLessonsByGoal(
-      lessons: baseLessons,
+      lessons: listToPrioritize,
       goalType: goalType,
     );
 
-    return prioritizedLessons;
+    return prioritizedLessons.map((l) => l.metadata.id).toList();
   }
 
-  /// Get lessons for a specific proficiency level
-  List<String> _getLessonsForProficiency({
-    required String targetLanguage,
-    required ProficiencyLevel proficiencyLevel,
-  }) {
-    // Lesson ID format: {language}_{level}_{category}_{number}
-    // Example: en_basic_vocab_001, en_intermediate_grammar_005
-
-    final prefix = '${targetLanguage.toLowerCase()}_${proficiencyLevel.name}';
-
-    switch (proficiencyLevel) {
-      case ProficiencyLevel.basic:
-        return [
-          '${prefix}_vocab_001', // Basic greetings
-          '${prefix}_vocab_002', // Numbers and time
-          '${prefix}_vocab_003', // Family and relationships
-          '${prefix}_grammar_001', // Present tense
-          '${prefix}_grammar_002', // Basic sentence structure
-          '${prefix}_listening_001', // Simple conversations
-          '${prefix}_speaking_001', // Self-introduction
-          '${prefix}_vocab_004', // Food and drinks
-          '${prefix}_vocab_005', // Daily activities
-          '${prefix}_grammar_003', // Questions and answers
-        ];
-
-      case ProficiencyLevel.intermediate:
-        return [
-          '${prefix}_vocab_001', // Work and professions
-          '${prefix}_vocab_002', // Travel and transportation
-          '${prefix}_grammar_001', // Past tense
-          '${prefix}_grammar_002', // Future tense
-          '${prefix}_listening_001', // News and media
-          '${prefix}_speaking_001', // Expressing opinions
-          '${prefix}_vocab_003', // Health and wellness
-          '${prefix}_grammar_003', // Conditional sentences
-          '${prefix}_listening_002', // Interviews
-          '${prefix}_speaking_002', // Presentations
-        ];
-
-      case ProficiencyLevel.advanced:
-        return [
-          '${prefix}_vocab_001', // Academic vocabulary
-          '${prefix}_vocab_002', // Business terminology
-          '${prefix}_grammar_001', // Complex sentence structures
-          '${prefix}_grammar_002', // Idiomatic expressions
-          '${prefix}_listening_001', // Lectures and speeches
-          '${prefix}_speaking_001', // Debates and discussions
-          '${prefix}_vocab_003', // Cultural references
-          '${prefix}_grammar_003', // Advanced writing
-          '${prefix}_listening_002', // Podcasts and documentaries
-          '${prefix}_speaking_002', // Professional communication
-        ];
+  ProficiencyLevel _mapDifficultyToProficiency(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'beginner':
+      case 'elementary':
+        return ProficiencyLevel.basic;
+      case 'intermediate':
+      case 'upperintermediate':
+        return ProficiencyLevel.intermediate;
+      case 'advanced':
+      case 'master':
+        return ProficiencyLevel.advanced;
+      default:
+        return ProficiencyLevel.basic;
     }
   }
 
   /// Prioritize lessons based on goal type
   /// Reorders lessons to emphasize relevant content for the goal
-  List<String> _prioritizeLessonsByGoal({
-    required List<String> lessons,
+  List<Lesson> _prioritizeLessonsByGoal({
+    required List<Lesson> lessons,
     required GoalType goalType,
   }) {
     // Create a copy to avoid modifying original list
-    final prioritized = List<String>.from(lessons);
+    final prioritized = List<Lesson>.from(lessons);
 
-    // Define priority keywords for each goal type
+    // Define priority keywords/categories for each goal type
     final priorityKeywords = _getPriorityKeywords(goalType);
 
     // Sort lessons: priority lessons first, then others
     prioritized.sort((a, b) {
-      final aHasPriority =
-          priorityKeywords.any((keyword) => a.contains(keyword));
-      final bHasPriority =
-          priorityKeywords.any((keyword) => b.contains(keyword));
+      final aCat = a.metadata.category.name.toLowerCase();
+      final bCat = b.metadata.category.name.toLowerCase();
+      final aTitle = a.metadata.title.toLowerCase();
+      final bTitle = b.metadata.title.toLowerCase();
+
+      final aHasPriority = priorityKeywords.contains(aCat) || 
+          priorityKeywords.any((keyword) => aTitle.contains(keyword));
+      final bHasPriority = priorityKeywords.contains(bCat) || 
+          priorityKeywords.any((keyword) => bTitle.contains(keyword));
 
       if (aHasPriority && !bHasPriority) return -1;
       if (!aHasPriority && bHasPriority) return 1;
       return 0; // Keep original order for same priority
     });
 
+    // If not enough lessons to form a full path (e.g. 10), we can pad or duplicate if we really wanted to, 
+    // but typically we just return what is available. 
+    // The path screen will map them out. We'll return max 15 lessons.
+    if (prioritized.length > 15) {
+      return prioritized.sublist(0, 15);
+    }
     return prioritized;
   }
 
@@ -182,15 +165,15 @@ class LearningPathGenerator {
   List<String> _getPriorityKeywords(GoalType goalType) {
     switch (goalType) {
       case GoalType.conversation:
-        return ['speaking', 'listening', 'vocab'];
+        return ['speaking', 'listening', 'vocabulary', 'vocab'];
       case GoalType.exam:
-        return ['grammar', 'vocab', 'listening'];
+        return ['grammar', 'vocabulary', 'vocab', 'listening'];
       case GoalType.work:
-        return ['vocab', 'speaking', 'grammar'];
+        return ['vocabulary', 'vocab', 'speaking', 'grammar', 'business', 'work'];
       case GoalType.travel:
-        return ['vocab', 'speaking', 'listening'];
+        return ['vocabulary', 'vocab', 'speaking', 'listening', 'travel'];
       case GoalType.hobby:
-        return ['vocab', 'listening', 'speaking'];
+        return ['vocabulary', 'vocab', 'listening', 'speaking'];
     }
   }
 }

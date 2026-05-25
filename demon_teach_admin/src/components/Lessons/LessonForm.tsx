@@ -14,7 +14,8 @@ const LessonForm: React.FC = () => {
   const [validating, setValidating] = useState(false);
   const [lesson, setLesson] = useState<Partial<Lesson>>({
     title: '',
-    difficulty: 'basic',
+    difficulty: 'beginner',
+    category: 'vocabulary',
     topic: '',
     targetLanguage: 'en',
     durationEstimate: 10,
@@ -131,6 +132,7 @@ const LessonForm: React.FC = () => {
         await lessonService.createLesson({
           title: lesson.title!,
           difficulty: lesson.difficulty!,
+          category: lesson.category!,
           topic: lesson.topic!,
           targetLanguage: lesson.targetLanguage!,
           durationEstimate: lesson.durationEstimate!,
@@ -271,9 +273,27 @@ const LessonForm: React.FC = () => {
                 onChange={(e) => setLesson({ ...lesson, difficulty: e.target.value as any })}
                 required
               >
-                <option value="basic">Basic</option>
+                <option value="beginner">Beginner</option>
+                <option value="elementary">Elementary</option>
                 <option value="intermediate">Intermediate</option>
+                <option value="upperIntermediate">Upper Intermediate</option>
                 <option value="advanced">Advanced</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Category *</label>
+              <select
+                value={lesson.category || 'vocabulary'}
+                onChange={(e) => setLesson({ ...lesson, category: e.target.value as any })}
+                required
+              >
+                <option value="vocabulary">Vocabulary</option>
+                <option value="grammar">Grammar</option>
+                <option value="listening">Listening</option>
+                <option value="speaking">Speaking</option>
+                <option value="reading">Reading</option>
+                <option value="writing">Writing</option>
               </select>
             </div>
 

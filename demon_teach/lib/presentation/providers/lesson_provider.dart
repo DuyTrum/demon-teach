@@ -3,8 +3,15 @@ import 'package:demon_teach/domain/repositories/lesson_repository.dart';
 import 'package:demon_teach/domain/usecases/lesson/get_next_lesson.dart';
 import 'package:demon_teach/domain/usecases/lesson/get_lesson_by_id.dart';
 import 'package:demon_teach/domain/usecases/lesson/complete_lesson.dart';
+import 'package:demon_teach/domain/entities/flashcard.dart';
+import 'package:demon_teach/domain/services/content_parser.dart';
 import 'package:demon_teach/presentation/providers/learning_path_provider.dart';
+import 'package:demon_teach/presentation/providers/review_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Alias for parsed content to avoid naming conflict with entities/lesson.dart's LessonContent
+import 'package:demon_teach/domain/services/content_parser.dart' as content_parser;
+typedef demon_teach_content_parser_LessonContent = content_parser.LessonContent;
 
 // Repository provider
 final lessonRepositoryProvider = Provider<LessonRepository>((ref) {
@@ -24,6 +31,7 @@ final completeLessonProvider = Provider<CompleteLesson>((ref) {
   return CompleteLesson(
     ref.watch(lessonRepositoryProvider),
     ref.watch(learningPathRepositoryProvider),
+    ref.watch(reviewRepositoryProvider),
   );
 });
 
@@ -112,6 +120,11 @@ class LessonNotifier extends StateNotifier<LessonState> {
     );
   }
 
+  /// Set a custom lesson (e.g. dynamically generated AI review)
+  void setCustomLesson(Lesson lesson) {
+    state = LessonState(currentLesson: lesson, isLoading: false);
+  }
+
   /// Complete current lesson
   Future<bool> completeCurrentLesson({
     required String userId,
@@ -122,11 +135,26 @@ class LessonNotifier extends StateNotifier<LessonState> {
 
     state = state.copyWith(isCompleting: true);
 
+    // Extract flashcards from lesson content if available
+    List<Flashcard>? flashcards;
+    if (state.currentLesson!.content != null) {
+      try {
+        final contentMap = state.currentLesson!.content!.content;
+        final parser = ContentParser();
+        // The parser parses from JSON string, or we can use LessonContent.fromJson (domain/services/content_parser.dart)
+        final parsedContent = demon_teach_content_parser_LessonContent.fromJson(contentMap);
+        flashcards = parsedContent.flashcards;
+      } catch (e) {
+        print('Error extracting flashcards for review: $e');
+      }
+    }
+
     final result = await _completeLesson(
       userId: userId,
       lessonId: state.currentLesson!.metadata.id,
       score: score,
       targetLanguage: targetLanguage,
+      flashcards: flashcards,
     );
 
     return result.when(

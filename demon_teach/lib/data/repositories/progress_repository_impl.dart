@@ -1,31 +1,30 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demon_teach/core/errors/failures.dart';
 import 'package:demon_teach/core/utils/result.dart';
 import 'package:demon_teach/domain/entities/progress.dart';
 import 'package:demon_teach/domain/repositories/progress_repository.dart';
 import 'package:demon_teach/domain/services/progress_tracker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
-/// Implementation of ProgressRepository using SharedPreferences
+/// Implementation of ProgressRepository using Firestore
 class ProgressRepositoryImpl implements ProgressRepository {
   final SharedPreferences _prefs;
   final ProgressTracker _tracker;
-  static const String _progressKeyPrefix = 'progress_';
 
   ProgressRepositoryImpl(this._prefs, this._tracker);
 
-  String _getProgressKey(String userId, String targetLanguage) {
-    return '${_progressKeyPrefix}${userId}_$targetLanguage';
+  String _getDocumentId(String userId, String targetLanguage) {
+    return 'progress_${userId}_$targetLanguage';
   }
 
   @override
   Future<Result<Progress>> getProgress(
       String userId, String targetLanguage) async {
     try {
-      final key = _getProgressKey(userId, targetLanguage);
-      final progressJson = _prefs.getString(key);
+      final docId = _getDocumentId(userId, targetLanguage);
+      final docSnap = await FirebaseFirestore.instance.collection('progress').doc(docId).get();
 
-      if (progressJson == null) {
+      if (!docSnap.exists || docSnap.data() == null) {
         // Create initial progress
         final initialProgress = Progress.initial(
           userId: userId,
@@ -35,13 +34,11 @@ class ProgressRepositoryImpl implements ProgressRepository {
         return Result.success(initialProgress);
       }
 
-      final progressData = json.decode(progressJson) as Map<String, dynamic>;
-      final progress = Progress.fromJson(progressData);
-
+      final progress = Progress.fromJson(docSnap.data()!);
       return Result.success(progress);
     } catch (e) {
       return Result.failure(
-        CacheFailure(message: 'Failed to get progress: ${e.toString()}'),
+        ServerFailure(message: 'Failed to get progress from Firestore: ${e.toString()}'),
       );
     }
   }
@@ -49,14 +46,16 @@ class ProgressRepositoryImpl implements ProgressRepository {
   @override
   Future<Result<void>> updateProgress(Progress progress) async {
     try {
-      final key = _getProgressKey(progress.userId, progress.targetLanguage);
-      final progressJson = json.encode(progress.toJson());
-      await _prefs.setString(key, progressJson);
+      final docId = _getDocumentId(progress.userId, progress.targetLanguage);
+      await FirebaseFirestore.instance
+          .collection('progress')
+          .doc(docId)
+          .set(progress.toJson());
 
       return Result.success(null);
     } catch (e) {
       return Result.failure(
-        CacheFailure(message: 'Failed to update progress: ${e.toString()}'),
+        ServerFailure(message: 'Failed to update progress on Firestore: ${e.toString()}'),
       );
     }
   }
@@ -88,7 +87,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
       );
     } catch (e) {
       return Result.failure(
-        CacheFailure(message: 'Failed to add XP: ${e.toString()}'),
+        ServerFailure(message: 'Failed to add XP: ${e.toString()}'),
       );
     }
   }
@@ -118,7 +117,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
       );
     } catch (e) {
       return Result.failure(
-        CacheFailure(message: 'Failed to update streak: ${e.toString()}'),
+        ServerFailure(message: 'Failed to update streak: ${e.toString()}'),
       );
     }
   }
@@ -149,7 +148,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
       );
     } catch (e) {
       return Result.failure(
-        CacheFailure(
+        ServerFailure(
             message: 'Failed to increment lessons completed: ${e.toString()}'),
       );
     }

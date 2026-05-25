@@ -3,7 +3,8 @@ import { api } from './api';
 export interface GenerateLessonParams {
   topic: string;
   language: 'en' | 'zh' | 'ko';
-  difficulty: 'basic' | 'intermediate' | 'advanced';
+  difficulty: 'beginner' | 'elementary' | 'intermediate' | 'upperIntermediate' | 'advanced';
+  category: 'vocabulary' | 'grammar' | 'listening' | 'speaking' | 'reading' | 'writing';
 }
 
 const generatorService = {

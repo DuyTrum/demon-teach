@@ -14,6 +14,17 @@ abstract class LessonRepository {
   /// Get lessons by language from remote
   Future<Result<List<Lesson>>> getLessonsByLanguage(String language);
 
+  /// Generate a custom AI lesson
+  Future<Result<Lesson>> generateLesson({
+    required String id,
+    required String topic,
+    required String language,
+    required String difficulty,
+    double? assessmentScore,
+    String? goalType,
+    int? dailyStudyMinutes,
+  });
+
   /// Get next lesson in learning path
   Future<Result<Lesson?>> getNextLesson({
     required String userId,

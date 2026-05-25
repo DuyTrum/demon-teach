@@ -12,6 +12,24 @@ class AppTheme {
   static const Color successColor = Color(0xFF43A047);
   static const Color warningColor = Color(0xFFFB8C00);
 
+  // Demon Theme Colors (Dark)
+  static const Color demonBgGradientTop = Color(0xFF1A0A2E);
+  static const Color demonBgGradientMid = Color(0xFF16082A);
+  static const Color demonBgGradientBot = Color(0xFF0D0519);
+  
+  static const Color demonNodeCompleted = Color(0xFF43A047);
+  static const Color demonNodeCurrent = Color(0xFF7C4DFF);
+  static const Color demonNodeLocked = Color(0xFF2A2040);
+  
+  static const Color demonGlowPurple = Color(0xFF9C7CFF);
+  static const Color demonGlowGreen = Color(0xFF66BB6A);
+  static const Color demonPathDone = Color(0xFF9C7CFF);
+  static const Color demonPathLocked = Color(0xFF382558);
+  
+  static const Color demonCardDark = Color(0xFF1E1235);
+  static const Color demonTextLight = Color(0xFFE8E0F0);
+  static const Color demonTextMuted = Color(0xFFA89DC0);
+
   // Text Colors
   static const Color textPrimaryColor = Color(0xFF2D3748);
   static const Color textSecondaryColor = Color(0xFF718096);

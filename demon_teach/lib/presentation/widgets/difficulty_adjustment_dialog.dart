@@ -30,6 +30,11 @@ class _DifficultyAdjustmentDialogState
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      backgroundColor: AppTheme.demonNodeLocked,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: _getColor().withOpacity(0.5)),
+      ),
       title: Row(
         children: [
           Icon(
@@ -38,8 +43,11 @@ class _DifficultyAdjustmentDialogState
             size: 32,
           ),
           const SizedBox(width: AppTheme.spacingSm),
-          const Expanded(
-            child: Text('Adjust Difficulty'),
+          Expanded(
+            child: Text(
+              'Adjust Difficulty',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -49,24 +57,26 @@ class _DifficultyAdjustmentDialogState
         children: [
           Text(
             widget.adjustment.description,
-            style: Theme.of(context).textTheme.bodyLarge,
+            style: const TextStyle(color: AppTheme.demonTextLight),
           ),
           const SizedBox(height: AppTheme.spacingMd),
           Container(
-            padding: const EdgeInsets.all(AppTheme.spacingSm),
+            padding: const EdgeInsets.all(AppTheme.spacingMd),
             decoration: BoxDecoration(
-              color: _getColor().withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _getColor()),
+              color: Colors.black.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _getColor().withOpacity(0.5)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'What will change:',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 14,
+                  ),
                 ),
                 const SizedBox(height: AppTheme.spacingSm),
                 _buildChangeItem(
@@ -87,31 +97,34 @@ class _DifficultyAdjustmentDialogState
           const SizedBox(height: AppTheme.spacingMd),
           Text(
             'You can always manually adjust the difficulty later in settings.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textSecondaryColor,
-                  fontStyle: FontStyle.italic,
-                ),
+            style: TextStyle(
+              color: AppTheme.demonTextMuted,
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ],
       ),
       actions: [
         TextButton(
           onPressed: _isProcessing ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text('Cancel', style: TextStyle(color: AppTheme.demonTextMuted)),
         ),
         ElevatedButton(
           onPressed: _isProcessing ? null : _handleConfirm,
           style: ElevatedButton.styleFrom(
-            backgroundColor: _getColor(),
-            foregroundColor: Colors.white,
+            backgroundColor: _getColor().withOpacity(0.2),
+            foregroundColor: _getColor(),
+            side: BorderSide(color: _getColor()),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           child: _isProcessing
-              ? const SizedBox(
+              ? SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(_getColor()),
                   ),
                 )
               : Text('Apply ${widget.adjustment.displayName}'),
@@ -130,7 +143,7 @@ class _DifficultyAdjustmentDialogState
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: const TextStyle(color: AppTheme.demonTextLight, fontSize: 13),
             ),
           ),
         ],

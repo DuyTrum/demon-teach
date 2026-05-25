@@ -106,6 +106,20 @@ app.get('/api/tts', async (req, res, next) => {
   }
 });
 
+const { generateSfx } = require('./utils/wavGenerator');
+
+app.get('/api/sfx/:type', (req, res) => {
+  const type = req.params.type;
+  try {
+    const buffer = generateSfx(type);
+    res.set('Content-Type', 'audio/wav');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error generating SFX:', error.message);
+    res.status(500).json({ success: false, message: 'SFX generation failed' });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use('/api/content', contentRoutes);

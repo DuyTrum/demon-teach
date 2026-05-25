@@ -1,34 +1,27 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demon_teach/core/errors/failures.dart';
 import 'package:demon_teach/core/utils/result.dart';
 import 'package:demon_teach/domain/entities/learning_path.dart';
 import 'package:demon_teach/domain/repositories/learning_path_repository.dart';
 
-/// Implementation of LearningPathRepository using SharedPreferences
+/// Implementation of LearningPathRepository using Cloud Firestore
 class LearningPathRepositoryImpl implements LearningPathRepository {
-  final SharedPreferences _prefs;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Keys for SharedPreferences
-  static const String _keyPrefix = 'learning_path_';
+  LearningPathRepositoryImpl([dynamic _]); // Accept parameter for backward compatibility
 
-  LearningPathRepositoryImpl(this._prefs);
-
-  /// Generate storage key for user and language
-  String _getKey({required String userId, required String targetLanguage}) {
-    return '$_keyPrefix${userId}_$targetLanguage';
+  String _getDocId({required String userId, required String targetLanguage}) {
+    return 'user_${userId}_$targetLanguage';
   }
 
   @override
   Future<Result<void>> saveLearningPath(LearningPath path) async {
     try {
-      final key = _getKey(
+      final docId = _getDocId(
         userId: path.userId,
         targetLanguage: path.targetLanguage,
       );
-      final json = jsonEncode(path.toJson());
-      print('--- saveLearningPath KEY: $key ---');
-      await _prefs.setString(key, json);
+      await _firestore.collection('learning_paths').doc(docId).set(path.toJson());
       return Result.success(null);
     } catch (e) {
       return Result.failure(
@@ -43,17 +36,18 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
     required String targetLanguage,
   }) async {
     try {
-      final key = _getKey(userId: userId, targetLanguage: targetLanguage);
-      print('--- getLearningPath KEY: $key ---');
-      final jsonString = _prefs.getString(key);
-      print('--- getLearningPath jsonString is null? ${jsonString == null} ---');
+      final docId = _getDocId(userId: userId, targetLanguage: targetLanguage);
+      final docSnap = await _firestore.collection('learning_paths').doc(docId).get();
 
-      if (jsonString == null) {
+      if (!docSnap.exists || docSnap.data() == null) {
         return Result.success(null);
       }
 
-      final json = jsonDecode(jsonString) as Map<String, dynamic>;
-      final path = LearningPath.fromJson(json);
+      final parsedPath = LearningPath.fromJson(docSnap.data()!);
+      final path = parsedPath.id == docId 
+          ? parsedPath 
+          : parsedPath.copyWith(id: docId);
+          
       return Result.success(path);
     } catch (e) {
       return Result.failure(
@@ -68,28 +62,15 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
     required int currentLessonIndex,
   }) async {
     try {
-      // Find the path by iterating through all stored paths
-      final keys = _prefs.getKeys().where((key) => key.startsWith(_keyPrefix));
+      await _firestore
+          .collection('learning_paths')
+          .doc(pathId)
+          .update({
+        'currentLessonIndex': currentLessonIndex,
+        'lastModifiedAt': DateTime.now().toIso8601String(),
+      });
 
-      for (final key in keys) {
-        final jsonString = _prefs.getString(key);
-        if (jsonString != null) {
-          final json = jsonDecode(jsonString) as Map<String, dynamic>;
-          if (json['id'] == pathId) {
-            // Update the current lesson index
-            json['currentLessonIndex'] = currentLessonIndex;
-            json['lastModifiedAt'] = DateTime.now().toIso8601String();
-
-            // Save back to SharedPreferences
-            await _prefs.setString(key, jsonEncode(json));
-            return Result.success(null);
-          }
-        }
-      }
-
-      return Result.failure(
-        CacheFailure(message: 'Learning path not found: $pathId'),
-      );
+      return Result.success(null);
     } catch (e) {
       return Result.failure(
         CacheFailure(message: 'Failed to update progress: ${e.toString()}'),
@@ -100,27 +81,11 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
   @override
   Future<Result<void>> deleteLearningPath(String pathId) async {
     try {
-      // Find and delete the path by iterating through all stored paths
-      final keys = _prefs.getKeys().where((key) => key.startsWith(_keyPrefix));
-
-      for (final key in keys) {
-        final jsonString = _prefs.getString(key);
-        if (jsonString != null) {
-          final json = jsonDecode(jsonString) as Map<String, dynamic>;
-          if (json['id'] == pathId) {
-            await _prefs.remove(key);
-            return Result.success(null);
-          }
-        }
-      }
-
-      return Result.failure(
-        CacheFailure(message: 'Learning path not found: $pathId'),
-      );
+      await _firestore.collection('learning_paths').doc(pathId).delete();
+      return Result.success(null);
     } catch (e) {
       return Result.failure(
-        CacheFailure(
-            message: 'Failed to delete learning path: ${e.toString()}'),
+        CacheFailure(message: 'Failed to delete learning path: ${e.toString()}'),
       );
     }
   }
@@ -131,14 +96,13 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
     required String targetLanguage,
   }) async {
     try {
-      final key = _getKey(userId: userId, targetLanguage: targetLanguage);
-      final exists = _prefs.containsKey(key);
-      return Result.success(exists);
+      final docId = _getDocId(userId: userId, targetLanguage: targetLanguage);
+      final docSnap = await _firestore.collection('learning_paths').doc(docId).get();
+      return Result.success(docSnap.exists);
     } catch (e) {
       return Result.failure(
         CacheFailure(
-            message:
-                'Failed to check learning path existence: ${e.toString()}'),
+            message: 'Failed to check learning path existence: ${e.toString()}'),
       );
     }
   }

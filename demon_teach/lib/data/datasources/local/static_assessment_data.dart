@@ -1,8 +1,8 @@
 import 'package:demon_teach/domain/entities/assessment.dart';
 
-/// Mock assessment data for different languages
-class MockAssessmentData {
-  /// Get mock assessment for English
+/// Static assessment data for initial diagnostic evaluation
+class StaticAssessmentData {
+  /// Get assessment for English
   static Assessment getEnglishAssessment() {
     return const Assessment(
       id: 'assessment_en_1',
@@ -109,7 +109,7 @@ class MockAssessmentData {
     );
   }
 
-  /// Get mock assessment for Chinese
+  /// Get assessment for Chinese
   static Assessment getChineseAssessment() {
     return const Assessment(
       id: 'assessment_zh_1',
@@ -214,7 +214,7 @@ class MockAssessmentData {
     );
   }
 
-  /// Get mock assessment for Korean
+  /// Get assessment for Korean
   static Assessment getKoreanAssessment() {
     return const Assessment(
       id: 'assessment_ko_1',
@@ -354,7 +354,7 @@ class MockAssessmentData {
       'How do you say "tomorrow"?': 'Bạn nói "ngày mai" như thế nào?',
       'Complete: 我___ 去学校 (I want to go to school)': 'Điền vào: 我___ 去学校 (Tôi muốn đến trường)',
       'What is the correct measure word for books?': 'Lượng từ đúng cho sách là gì?',
-      'What does 虽然...但是... structure mean?': 'Cấu trúc 虽然...但是... (Tuy... nhưng...) nghĩa là gì?',
+      'What does 虽然...保持... structure mean?': 'Cấu trúc 虽然...但是... (Tuy... nhưng...) nghĩa là gì?',
       'What does 一举两得 mean?': 'Thành ngữ 一举两得 (Nhất cử lưỡng tiện) nghĩa là gì?',
       '안녕하세요 means:': '안녕하세요 (Annyeonghaseyo) nghĩa là:',
       '감사합니다 means:': '감사합니다 (Gamsahamnida) nghĩa là:',

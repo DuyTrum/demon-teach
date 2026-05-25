@@ -1,44 +1,49 @@
 .lesson-form-container {
-  background: white;
-  border-radius: 8px;
-  padding: 30px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .form-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #f0f0f0;
+  margin-bottom: 24px;
 }
 
 .form-header h2 {
   margin: 0;
-  color: #333;
+  background: linear-gradient(135deg, var(--neon-purple) 0%, var(--blood-red) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .header-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .lesson-form {
-  max-width: 1000px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .form-section {
-  margin-bottom: 40px;
-  padding: 25px;
-  background: #fafafa;
-  border-radius: 8px;
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-glow);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  padding: 24px;
 }
 
 .form-section h3 {
-  margin: 0 0 20px 0;
-  color: #333;
-  font-size: 20px;
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: var(--neon-purple);
+  border-bottom: 1px solid var(--border-glow);
+  padding-bottom: 12px;
 }
 
 .section-header {
@@ -46,36 +51,45 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-glow);
+  padding-bottom: 12px;
 }
 
 .section-header h3 {
   margin: 0;
+  border: none;
+  padding: 0;
 }
 
 .form-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  display: flex;
   gap: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+}
+
+.form-row .form-group {
+  flex: 1;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
+  margin-bottom: 16px;
 }
 
 .form-group label {
+  display: block;
   margin-bottom: 8px;
-  color: #555;
-  font-weight: 500;
-  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
+  width: 100%;
   padding: 10px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-glow);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-main);
   border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
@@ -85,56 +99,53 @@
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--neon-purple);
 }
 
 .flashcard-item,
 .quiz-item {
-  background: white;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-glow);
+  border-radius: 8px;
   padding: 20px;
-  border-radius: 6px;
   margin-bottom: 20px;
-  border: 1px solid #e0e0e0;
 }
 
 .item-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 16px;
 }
 
 .item-header h4 {
   margin: 0;
-  color: #666;
-  font-size: 16px;
+  color: var(--text-main);
 }
 
 .btn-add {
+  background: rgba(176, 66, 255, 0.2);
+  color: var(--neon-purple);
+  border: 1px dashed var(--neon-purple);
   padding: 8px 16px;
-  background: #4caf50;
-  color: white;
-  border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-weight: 600;
   transition: all 0.2s;
 }
 
 .btn-add:hover {
-  background: #388e3c;
+  background: rgba(176, 66, 255, 0.3);
 }
 
 .btn-remove {
-  padding: 6px 12px;
-  background: #f44336;
-  color: white;
-  border: none;
+  background: rgba(255, 59, 59, 0.1);
+  color: var(--blood-red);
+  border: 1px solid var(--blood-red);
+  padding: 4px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   transition: all 0.2s;
 }
 

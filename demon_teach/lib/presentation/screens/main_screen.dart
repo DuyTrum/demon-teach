@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/theme/app_theme.dart';
@@ -34,38 +35,65 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     ];
 
     return Scaffold(
+      backgroundColor: AppTheme.demonBgGradientBot,
       body: IndexedStack(
         index: _currentIndex,
         children: screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppTheme.primaryColor,
-        unselectedItemColor: AppTheme.textSecondaryColor,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.school),
-            label: 'Học tập',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: AppTheme.demonGlowPurple.withOpacity(0.25),
+              width: 1.5,
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.replay),
-            label: 'Ôn tập',
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.demonGlowPurple.withOpacity(0.08),
+              blurRadius: 15,
+              spreadRadius: 2,
+            )
+          ],
+        ),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: BottomNavigationBar(
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: AppTheme.demonNodeLocked.withOpacity(0.85),
+              elevation: 0,
+              selectedItemColor: AppTheme.demonGlowPurple,
+              unselectedItemColor: AppTheme.demonTextMuted,
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              unselectedLabelStyle: const TextStyle(fontSize: 11),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.school_rounded),
+                  label: 'Học tập',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.replay_rounded),
+                  label: 'Ôn tập',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.bar_chart_rounded),
+                  label: 'Tiến độ',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person_rounded),
+                  label: 'Hồ sơ',
+                ),
+              ],
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            label: 'Tiến độ',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Hồ sơ',
-          ),
-        ],
+        ),
       ),
     );
   }

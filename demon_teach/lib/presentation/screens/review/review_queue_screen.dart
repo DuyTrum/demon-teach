@@ -1,12 +1,17 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/theme/app_theme.dart';
 import 'package:demon_teach/domain/entities/review_item.dart';
 import 'package:demon_teach/presentation/providers/review_provider.dart';
 import 'package:demon_teach/presentation/screens/review/review_session_screen.dart';
+import 'package:demon_teach/presentation/widgets/common/demon_background_particles.dart';
 import 'package:intl/intl.dart';
+import 'package:demon_teach/presentation/providers/lesson_provider.dart';
+import 'package:demon_teach/presentation/providers/language_provider.dart';
+import 'package:demon_teach/presentation/screens/lesson/daily_lesson_screen.dart';
 
-/// Review queue screen showing upcoming review items
+/// Review queue screen showing upcoming review items (Demon Theme)
 class ReviewQueueScreen extends ConsumerStatefulWidget {
   final String userId;
 
@@ -20,10 +25,11 @@ class ReviewQueueScreen extends ConsumerStatefulWidget {
 }
 
 class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
+  bool _isGeneratingAi = false;
+
   @override
   void initState() {
     super.initState();
-    // Load all reviews and due count
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(reviewProvider.notifier).loadAllReviews(widget.userId);
       ref.read(reviewProvider.notifier).loadDueReviewCount(widget.userId);
@@ -35,40 +41,182 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
     final reviewState = ref.watch(reviewProvider);
 
     return Scaffold(
+      backgroundColor: AppTheme.demonBgGradientBot,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Review Queue'),
+        title: const Text(
+          'Hàng chờ ôn tập',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: AppTheme.demonGlowPurple),
             onPressed: () {
               ref.read(reviewProvider.notifier).loadAllReviews(widget.userId);
-              ref
-                  .read(reviewProvider.notifier)
-                  .loadDueReviewCount(widget.userId);
+              ref.read(reviewProvider.notifier).loadDueReviewCount(widget.userId);
             },
           ),
         ],
       ),
-      body: reviewState.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : reviewState.error != null
-              ? _buildErrorState(reviewState.error!)
-              : _buildReviewQueue(reviewState),
-      floatingActionButton: reviewState.dueCount > 0
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ReviewSessionScreen(userId: widget.userId),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.play_arrow),
-              label: Text('Start Review (${reviewState.dueCount})'),
-            )
-          : null,
+      body: Stack(
+        children: [
+          // Dark Gradient Background
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.demonBgGradientTop,
+                  AppTheme.demonBgGradientMid,
+                  AppTheme.demonBgGradientBot,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+          
+          // Eerie Particles
+          const Positioned.fill(
+            child: DemonBackgroundParticles(),
+          ),
+
+          // Main Content
+          SafeArea(
+            child: reviewState.isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppTheme.demonGlowPurple),
+                  )
+                : reviewState.error != null
+                    ? _buildErrorState(reviewState.error!)
+                    : _buildReviewQueue(reviewState),
+          ),
+        ],
+      ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (reviewState.dueCount > 0)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.demonGlowPurple.withOpacity(0.4),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  )
+                ],
+              ),
+              child: FloatingActionButton.extended(
+                heroTag: 'start_review',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => ReviewSessionScreen(userId: widget.userId),
+                    ),
+                  );
+                },
+                backgroundColor: AppTheme.demonGlowPurple,
+                foregroundColor: Colors.white,
+                icon: const Icon(Icons.play_arrow),
+                label: Text(
+                  'Bắt đầu ôn tập (${reviewState.dueCount})',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          
+          // AI Review Generator Button
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.demonGlowGreen.withOpacity(0.4),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                )
+              ],
+            ),
+            child: FloatingActionButton.extended(
+              heroTag: 'generate_ai_review',
+              onPressed: _isGeneratingAi ? null : _generateAiReview,
+              backgroundColor: AppTheme.demonNodeLocked,
+              foregroundColor: AppTheme.demonGlowGreen,
+              icon: _isGeneratingAi 
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: AppTheme.demonGlowGreen, strokeWidth: 2))
+                  : const Icon(Icons.auto_awesome),
+              label: const Text(
+                'Tạo Bài Ôn Tập AI',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _generateAiReview() async {
+    setState(() {
+      _isGeneratingAi = true;
+    });
+
+    try {
+      final langPref = ref.read(languageProvider).preference;
+      final targetLang = langPref?.targetLanguage ?? 'en';
+      
+      final lessonRepo = ref.read(lessonRepositoryProvider);
+      
+      final result = await lessonRepo.generateLesson(
+        id: 'review_ai_${DateTime.now().millisecondsSinceEpoch}',
+        topic: 'AI Review & Reinforcement',
+        language: targetLang,
+        difficulty: 'intermediate', // Auto-adjust based on progress
+        goalType: 'review',
+      );
+
+      if (mounted) {
+        setState(() {
+          _isGeneratingAi = false;
+        });
+
+        result.when(
+          success: (lesson) {
+            // Set custom lesson
+            ref.read(lessonProvider.notifier).setCustomLesson(lesson);
+            
+            // Navigate to DailyLessonScreen
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const DailyLessonScreen()),
+            );
+          },
+          failure: (failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Không thể tạo bài ôn tập AI: ${failure.message}')),
+            );
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isGeneratingAi = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildErrorState(String error) {
@@ -79,21 +227,25 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
           const Icon(
             Icons.error_outline,
             size: 64,
-            color: AppTheme.errorColor,
+            color: Colors.redAccent,
           ),
           const SizedBox(height: AppTheme.spacingMd),
           Text(
-            'Error: $error',
-            style: Theme.of(context).textTheme.bodyLarge,
+            'Lỗi: $error',
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.spacingLg),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.demonGlowPurple,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               ref.read(reviewProvider.notifier).clearError();
               ref.read(reviewProvider.notifier).loadAllReviews(widget.userId);
             },
-            child: const Text('Retry'),
+            child: const Text('Thử lại'),
           ),
         ],
       ),
@@ -106,22 +258,48 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.inbox_outlined,
-              size: 100,
-              color: Colors.grey,
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.demonGlowPurple.withOpacity(0.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.demonGlowPurple.withOpacity(0.4),
+                        blurRadius: 30,
+                        spreadRadius: 10,
+                      )
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.auto_awesome,
+                  size: 60,
+                  color: Colors.white,
+                ),
+              ],
             ),
-            const SizedBox(height: AppTheme.spacingLg),
-            Text(
-              'No reviews yet',
-              style: Theme.of(context).textTheme.headlineMedium,
+            const SizedBox(height: AppTheme.spacingXl),
+            const Text(
+              'Chưa có mục ôn tập nào',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.2,
+              ),
             ),
             const SizedBox(height: AppTheme.spacingSm),
             Text(
-              'Mark flashcards or quiz questions as difficult\nto add them to your review queue',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textSecondaryColor,
-                  ),
+              'Kiến thức ác quỷ của bạn đang rất vững chắc.\nHãy quay lại sau để củng cố thêm.',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppTheme.demonTextMuted,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -130,13 +308,12 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
     }
 
     // Group reviews by status (due, upcoming)
-    final dueReviews =
-        reviewState.allReviews.where((item) => item.isDue).toList();
-    final upcomingReviews =
-        reviewState.allReviews.where((item) => !item.isDue).toList();
+    final dueReviews = reviewState.allReviews.where((item) => item.isDue).toList();
+    final upcomingReviews = reviewState.allReviews.where((item) => !item.isDue).toList();
 
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingMd),
+      physics: const BouncingScrollPhysics(),
       children: [
         // Summary card
         _buildSummaryCard(dueReviews.length, upcomingReviews.length),
@@ -144,7 +321,7 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
 
         // Due reviews section
         if (dueReviews.isNotEmpty) ...[
-          _buildSectionHeader('Due Now', dueReviews.length),
+          _buildSectionHeader('Cần ôn ngay', dueReviews.length, isDue: true),
           const SizedBox(height: AppTheme.spacingMd),
           ...dueReviews.map((item) => _buildReviewItemCard(item, isDue: true)),
           const SizedBox(height: AppTheme.spacingLg),
@@ -152,103 +329,110 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
 
         // Upcoming reviews section
         if (upcomingReviews.isNotEmpty) ...[
-          _buildSectionHeader('Upcoming', upcomingReviews.length),
+          _buildSectionHeader('Sắp tới', upcomingReviews.length, isDue: false),
           const SizedBox(height: AppTheme.spacingMd),
-          ...upcomingReviews
-              .map((item) => _buildReviewItemCard(item, isDue: false)),
+          ...upcomingReviews.map((item) => _buildReviewItemCard(item, isDue: false)),
         ],
       ],
     );
   }
 
   Widget _buildSummaryCard(int dueCount, int upcomingCount) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingLg),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryItem(
-                    'Due Now',
-                    dueCount.toString(),
-                    AppTheme.errorColor,
-                    Icons.alarm,
-                  ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.demonNodeLocked.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          padding: const EdgeInsets.all(AppTheme.spacingLg),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildSummaryItem(
+                  'Cần ôn ngay',
+                  dueCount.toString(),
+                  Colors.redAccent,
+                  Icons.local_fire_department,
                 ),
-                Container(
-                  width: 1,
-                  height: 50,
-                  color: Colors.grey[300],
+              ),
+              Container(
+                width: 1,
+                height: 50,
+                color: Colors.white.withOpacity(0.1),
+              ),
+              Expanded(
+                child: _buildSummaryItem(
+                  'Sắp tới',
+                  upcomingCount.toString(),
+                  AppTheme.demonGlowPurple,
+                  Icons.hourglass_empty,
                 ),
-                Expanded(
-                  child: _buildSummaryItem(
-                    'Upcoming',
-                    upcomingCount.toString(),
-                    AppTheme.primaryColor,
-                    Icons.schedule,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSummaryItem(
-    String label,
-    String value,
-    Color color,
-    IconData icon,
-  ) {
+  Widget _buildSummaryItem(String label, String value, Color color, IconData icon) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 32),
+        Icon(icon, color: color, size: 28),
         const SizedBox(height: AppTheme.spacingSm),
         Text(
           value,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+            shadows: [
+              Shadow(
+                color: color.withOpacity(0.5),
+                blurRadius: 10,
+              )
+            ],
+          ),
         ),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondaryColor,
-              ),
+          style: TextStyle(
+            fontSize: 14,
+            color: AppTheme.demonTextMuted,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildSectionHeader(String title, int count) {
+  Widget _buildSectionHeader(String title, int count, {required bool isDue}) {
+    final color = isDue ? Colors.redAccent : AppTheme.demonGlowPurple;
     return Row(
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         const SizedBox(width: AppTheme.spacingSm),
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingSm,
-            vertical: 2,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
+            color: color.withOpacity(0.2),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.5)),
           ),
           child: Text(
             count.toString(),
-            style: const TextStyle(
-              color: AppTheme.primaryColor,
+            style: TextStyle(
+              color: color,
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),
@@ -259,49 +443,69 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
   }
 
   Widget _buildReviewItemCard(ReviewItem item, {required bool isDue}) {
-    final dateFormat = DateFormat('MMM d, y');
+    final dateFormat = DateFormat('MMM d');
     final timeFormat = DateFormat('h:mm a');
 
-    return Card(
+    final glowColor = isDue ? Colors.redAccent : AppTheme.demonGlowPurple;
+
+    return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
+      decoration: BoxDecoration(
+        color: AppTheme.demonNodeLocked.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDue ? glowColor.withOpacity(0.3) : Colors.white.withOpacity(0.05),
+        ),
+        boxShadow: isDue
+            ? [
+                BoxShadow(
+                  color: glowColor.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                )
+              ]
+            : null,
+      ),
       child: ListTile(
-        leading: _buildReviewTypeIcon(item.type),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: _buildReviewTypeIcon(item.type, glowColor),
         title: Text(
           item.type.displayName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text('Repetitions: ${item.repetitionCount}'),
-            Text('Ease: ${item.easeFactor.toStringAsFixed(2)}'),
+            Text(
+              'Độ dễ: ${item.easeFactor.toStringAsFixed(1)} | Lần ôn: ${item.repetitionCount}',
+              style: TextStyle(color: AppTheme.demonTextMuted, fontSize: 12),
+            ),
+            const SizedBox(height: 2),
             Text(
               isDue
-                  ? 'Due: Now'
-                  : 'Due: ${dateFormat.format(item.nextReviewDate)} at ${timeFormat.format(item.nextReviewDate)}',
+                  ? 'Hạn: Ngay bây giờ'
+                  : 'Hạn: ${dateFormat.format(item.nextReviewDate)} lúc ${timeFormat.format(item.nextReviewDate)}',
               style: TextStyle(
-                color:
-                    isDue ? AppTheme.errorColor : AppTheme.textSecondaryColor,
+                color: isDue ? Colors.redAccent : AppTheme.demonTextMuted,
                 fontWeight: isDue ? FontWeight.bold : FontWeight.normal,
+                fontSize: 12,
               ),
             ),
           ],
         ),
         trailing: isDue
             ? Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingSm,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.errorColor,
+                  color: Colors.redAccent.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
                 ),
                 child: const Text(
-                  'DUE',
+                  'CẦN ÔN',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.redAccent,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -312,49 +516,43 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
     );
   }
 
-  Widget _buildReviewTypeIcon(ReviewItemType type) {
+  Widget _buildReviewTypeIcon(ReviewItemType type, Color color) {
     IconData icon;
-    Color color;
-
     switch (type) {
       case ReviewItemType.flashcard:
         icon = Icons.style;
-        color = AppTheme.primaryColor;
         break;
       case ReviewItemType.quiz:
         icon = Icons.quiz;
-        color = AppTheme.accentColor;
         break;
       case ReviewItemType.listening:
         icon = Icons.headphones;
-        color = AppTheme.successColor;
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingSm),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Icon(icon, color: color),
+      child: Icon(icon, color: color, size: 24),
     );
   }
 
   Widget _buildIntervalBadge(int days) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingSm,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.1),
+        color: AppTheme.demonGlowPurple.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.demonGlowPurple.withOpacity(0.3)),
       ),
       child: Text(
-        '$days days',
+        '+$days ngày',
         style: const TextStyle(
-          color: AppTheme.primaryColor,
+          color: AppTheme.demonGlowPurple,
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
@@ -362,3 +560,4 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
     );
   }
 }
+

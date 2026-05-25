@@ -7,6 +7,7 @@ import 'package:demon_teach/domain/usecases/learning_path/generate_learning_path
 import 'package:demon_teach/domain/usecases/learning_path/get_learning_path.dart';
 import 'package:demon_teach/domain/usecases/learning_path/update_learning_path.dart';
 import 'package:demon_teach/domain/usecases/learning_path/regenerate_learning_path.dart';
+import 'package:demon_teach/presentation/providers/lesson_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Repository provider
@@ -22,8 +23,9 @@ final learningPathGeneratorProvider = Provider<LearningPathGenerator>((ref) {
 // Use case providers
 final generateLearningPathProvider = Provider<GenerateLearningPath>((ref) {
   return GenerateLearningPath(
-    ref.watch(learningPathRepositoryProvider),
-    ref.watch(learningPathGeneratorProvider),
+    ref.read(learningPathRepositoryProvider),
+    ref.read(lessonRepositoryProvider),
+    ref.read(learningPathGeneratorProvider),
   );
 });
 
@@ -37,8 +39,9 @@ final updateLearningPathProvider = Provider<UpdateLearningPath>((ref) {
 
 final regenerateLearningPathProvider = Provider<RegenerateLearningPath>((ref) {
   return RegenerateLearningPath(
-    ref.watch(learningPathRepositoryProvider),
-    ref.watch(learningPathGeneratorProvider),
+    ref.read(learningPathRepositoryProvider),
+    ref.read(lessonRepositoryProvider),
+    ref.read(learningPathGeneratorProvider),
   );
 });
 

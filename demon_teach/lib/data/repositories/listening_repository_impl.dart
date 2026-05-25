@@ -1,12 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demon_teach/core/errors/failures.dart';
 import 'package:demon_teach/core/utils/result.dart';
 import 'package:demon_teach/domain/entities/listening_exercise.dart';
 import 'package:demon_teach/domain/repositories/listening_repository.dart';
-import 'package:demon_teach/data/datasources/local/mock_listening_data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-/// Implementation of ListeningRepository using SharedPreferences and mock data
+/// Implementation of ListeningRepository using Firestore
 class ListeningRepositoryImpl implements ListeningRepository {
   final SharedPreferences _prefs;
   static const String _listeningResultsKey = 'listening_results';
@@ -19,35 +19,38 @@ class ListeningRepositoryImpl implements ListeningRepository {
     String lessonId,
   ) async {
     try {
-      // Extract target language from lessonId (format: lesson_en_1, en_basic_vocab_001, etc.)
-      final parts = lessonId.split('_');
-      String targetLanguage = 'en';
-
-      // Try to find language code in the lessonId
-      if (parts.length > 1) {
-        if (parts[0] == 'lesson' && parts.length > 1) {
-          targetLanguage = parts[1];
-        } else if (parts[0].length == 2) {
-          targetLanguage = parts[0];
-        }
+      final docSnap = await FirebaseFirestore.instance.collection('lessons').doc(lessonId).get();
+      if (!docSnap.exists || docSnap.data() == null) {
+        return Result.failure(
+          ServerFailure(message: 'Lesson $lessonId not found in Firestore.'),
+        );
       }
 
-      // Get mock listening exercise
-      final exercise = MockListeningData.getListeningExerciseForLanguage(
-        lessonId,
-        targetLanguage,
-      );
+      final data = docSnap.data()!;
+      final content = data['content'] as Map<String, dynamic>?;
+      if (content == null || content['listening'] == null) {
+        return Result.failure(
+          const ServerFailure(message: 'Listening exercise is not generated for this lesson.'),
+        );
+      }
+
+      final listeningMap = Map<String, dynamic>.from(content['listening'] as Map);
+      if (listeningMap['lessonId'] == null) {
+        listeningMap['lessonId'] = lessonId;
+      }
+      if (listeningMap['id'] == null) {
+        listeningMap['id'] = 'listening_$lessonId';
+      }
 
       // Check if audio has been played before
-      final playedKey = '$_audioPlayedKey:${exercise.id}';
+      final playedKey = '$_audioPlayedKey:${listeningMap['id']}';
       final hasPlayed = _prefs.getBool(playedKey) ?? false;
+      listeningMap['hasPlayedOnce'] = hasPlayed;
 
-      return Result.success(exercise.copyWith(hasPlayedOnce: hasPlayed));
+      return Result.success(ListeningExercise.fromJson(listeningMap));
     } catch (e) {
       return Result.failure(
-        CacheFailure(
-          message: 'Failed to get listening exercise: ${e.toString()}',
-        ),
+        ServerFailure(message: 'Failed to get listening exercise: ${e.toString()}'),
       );
     }
   }
@@ -61,7 +64,7 @@ class ListeningRepositoryImpl implements ListeningRepository {
       // Calculate score
       final correctCount = answers.where((a) => a.isCorrect).length;
       final totalQuestions = answers.length;
-      final percentage = (correctCount / totalQuestions) * 100;
+      final percentage = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0.0;
 
       final result = ListeningResult(
         exerciseId: exerciseId,
@@ -90,18 +93,7 @@ class ListeningRepositoryImpl implements ListeningRepository {
     String exerciseId,
   ) async {
     try {
-      // Extract lessonId from exerciseId (format: listening_en_lessonId)
-      final parts = exerciseId.split('_');
-      if (parts.length < 3) {
-        return Result.failure(
-          const ValidationFailure(
-            field: 'exerciseId',
-            message: 'Invalid exercise ID format',
-          ),
-        );
-      }
-
-      final lessonId = parts.sublist(2).join('_');
+      final lessonId = exerciseId.replaceFirst('listening_', '');
       return await getListeningExerciseForLesson(lessonId);
     } catch (e) {
       return Result.failure(
@@ -164,7 +156,6 @@ class ListeningRepositoryImpl implements ListeningRepository {
       results.add(result.toJson());
       await _prefs.setString(_listeningResultsKey, json.encode(results));
     } catch (e) {
-      // Log error but don't throw
       print('Failed to save listening result: $e');
     }
   }

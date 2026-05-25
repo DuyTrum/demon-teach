@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demon_teach/core/errors/failures.dart';
 import 'package:demon_teach/core/utils/result.dart';
 import 'package:demon_teach/domain/entities/lesson.dart';
 import 'package:demon_teach/domain/repositories/lesson_repository.dart';
 import 'package:demon_teach/domain/repositories/learning_path_repository.dart';
 import 'package:demon_teach/data/datasources/remote/lesson_remote_datasource.dart';
-import 'package:demon_teach/data/datasources/local/mock_lesson_data.dart';
 
 /// Implementation of LessonRepository using Remote API and local fallbacks
 class LessonRepositoryImpl implements LessonRepository {
@@ -28,51 +28,34 @@ class LessonRepositoryImpl implements LessonRepository {
   @override
   Future<Result<Lesson?>> getLessonById(String lessonId,
       {bool includeContent = true}) async {
-    final nativeLanguage = _prefs.getString('native_language') ?? 'en';
-    
-    // Fetch from remote first. If not found on server, generate it using AI!
     try {
-      final remoteResult = await _remoteDataSource.getLessonById(lessonId);
-      return await remoteResult.when(
-        success: (lesson) {
-          if (!includeContent) {
-            return Result.success(lesson.copyWith(content: null));
-          }
-          return Result.success(lesson);
-        },
-        failure: (failure) async {
-          // If not found on server, generate it using AI!
-          final genResult = await _generateLessonByAi(lessonId);
-          return genResult.when(
-            success: (generatedLesson) {
-              if (!includeContent) {
-                return Result.success(generatedLesson.copyWith(content: null));
-              }
-              return Result.success(generatedLesson);
-            },
-            failure: (genFailure) {
-              // Fallback to a local mock fallback as last resort
-              final fallbackLesson = MockLessonData.getLessonById(lessonId, nativeLanguage: nativeLanguage);
-              if (fallbackLesson != null) {
-                if (!includeContent) {
-                  return Result.success(fallbackLesson.copyWith(content: null));
-                }
-                return Result.success(fallbackLesson);
-              }
-              return Result.failure(genFailure);
-            },
-          );
-        },
-      );
-    } catch (e) {
-      // Fallback to local mock data on exception
-      final fallbackLesson = MockLessonData.getLessonById(lessonId, nativeLanguage: nativeLanguage);
-      if (fallbackLesson != null) {
+      final docSnap = await FirebaseFirestore.instance.collection('lessons').doc(lessonId).get();
+      
+      if (docSnap.exists && docSnap.data() != null) {
+        final lesson = Lesson.fromJson(docSnap.data()!);
+        final scaledLesson = _adjustLessonForStudyTime(lesson, _getDailyStudyMinutes());
+        
         if (!includeContent) {
-          return Result.success(fallbackLesson.copyWith(content: null));
+          return Result.success(scaledLesson.copyWith(content: null));
         }
-        return Result.success(fallbackLesson);
+        return Result.success(scaledLesson);
+      } else {
+        // Generate with AI
+        final genResult = await _generateLessonByAi(lessonId);
+        return genResult.when(
+          success: (generatedLesson) {
+            final scaledLesson = _adjustLessonForStudyTime(generatedLesson, _getDailyStudyMinutes());
+            if (!includeContent) {
+              return Result.success(scaledLesson.copyWith(content: null));
+            }
+            return Result.success(scaledLesson);
+          },
+          failure: (genFailure) {
+            return Result.failure(genFailure);
+          },
+        );
       }
+    } catch (e) {
       return Result.failure(ServerFailure(message: e.toString()));
     }
   }
@@ -194,6 +177,14 @@ class LessonRepositoryImpl implements LessonRepository {
       };
 
       await _prefs.setString(key, jsonEncode(progressData));
+
+      // Also sync to Cloud Firestore
+      final docId = 'progress_${userId}_$lessonId';
+      await FirebaseFirestore.instance
+          .collection('user_progress')
+          .doc(docId)
+          .set(progressData);
+
       return Result.success(null);
     } catch (e) {
       return Result.failure(
@@ -225,14 +216,34 @@ class LessonRepositoryImpl implements LessonRepository {
     required String lessonId,
   }) async {
     try {
-      final key = _getProgressKey(userId: userId, lessonId: lessonId);
-      final jsonString = _prefs.getString(key);
-
-      if (jsonString == null) {
-        return Result.success(null);
+      final docId = 'progress_${userId}_$lessonId';
+      
+      // Read from Firestore first
+      Map<String, dynamic>? progressData;
+      try {
+        final docSnap = await FirebaseFirestore.instance.collection('user_progress').doc(docId).get();
+        if (docSnap.exists && docSnap.data() != null) {
+          progressData = docSnap.data();
+          // Cache locally
+          final key = _getProgressKey(userId: userId, lessonId: lessonId);
+          await _prefs.setString(key, jsonEncode(progressData));
+        }
+      } catch (e) {
+        print('⚠️ Failed to fetch progress from Firestore, falling back to local: $e');
       }
 
-      final progressData = jsonDecode(jsonString) as Map<String, dynamic>;
+      // Local fallback
+      if (progressData == null) {
+        final key = _getProgressKey(userId: userId, lessonId: lessonId);
+        final jsonString = _prefs.getString(key);
+        if (jsonString != null) {
+          progressData = jsonDecode(jsonString) as Map<String, dynamic>;
+        }
+      }
+
+      if (progressData == null) {
+        return Result.success(null);
+      }
 
       // Get lesson metadata
       final lessonResult = await getLessonById(lessonId, includeContent: false);
@@ -246,17 +257,17 @@ class LessonRepositoryImpl implements LessonRepository {
           // Create lesson with progress data
           return Result.success(lesson.copyWith(
             status: LessonStatus.values.firstWhere(
-              (e) => e.name == progressData['status'],
+              (e) => e.name == progressData!['status'],
               orElse: () => LessonStatus.notStarted,
             ),
-            progressPercentage: progressData['progressPercentage'] as int?,
-            startedAt: progressData['startedAt'] != null
-                ? DateTime.parse(progressData['startedAt'] as String)
+            progressPercentage: progressData!['progressPercentage'] as int?,
+            startedAt: progressData!['startedAt'] != null
+                ? DateTime.parse(progressData!['startedAt'] as String)
                 : null,
-            completedAt: progressData['completedAt'] != null
-                ? DateTime.parse(progressData['completedAt'] as String)
+            completedAt: progressData!['completedAt'] != null
+                ? DateTime.parse(progressData!['completedAt'] as String)
                 : null,
-            score: progressData['score'] as int?,
+            score: progressData!['score'] as int?,
           ));
         },
         failure: (failure) => Result.failure(failure),
@@ -308,29 +319,46 @@ class LessonRepositoryImpl implements LessonRepository {
 
   @override
   Future<Result<List<Lesson>>> getLessonsByLanguage(String language) async {
-    final nativeLanguage = _prefs.getString('native_language') ?? 'en';
     try {
-      final result = await _remoteDataSource.getLessons(language);
-      return result.when(
-        success: (lessons) {
-          if (lessons.isEmpty) {
-            final mockLessons = MockLessonData.getLessonsForLanguage(language, nativeLanguage: nativeLanguage);
-            if (mockLessons.isNotEmpty) return Result.success(mockLessons);
-          }
-          return Result.success(lessons);
-        },
-        failure: (failure) {
-          final mockLessons = MockLessonData.getLessonsForLanguage(language, nativeLanguage: nativeLanguage);
-          if (mockLessons.isNotEmpty) return Result.success(mockLessons);
-          return Result.failure(failure);
-        },
+      final querySnap = await FirebaseFirestore.instance
+          .collection('lessons')
+          .where('targetLanguage', isEqualTo: language)
+          .where('isPublished', isEqualTo: true)
+          .get();
+
+      final lessons = querySnap.docs.map((doc) {
+        final lesson = Lesson.fromJson(doc.data());
+        return _adjustLessonForStudyTime(lesson, _getDailyStudyMinutes());
+      }).toList();
+
+      return Result.success(lessons);
+    } catch (e) {
+      return Result.failure(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<Lesson>> generateLesson({
+    required String id,
+    required String topic,
+    required String language,
+    required String difficulty,
+    double? assessmentScore,
+    String? goalType,
+    int? dailyStudyMinutes,
+  }) async {
+    try {
+      return await _remoteDataSource.generateLesson(
+        id: id,
+        topic: topic,
+        language: language,
+        difficulty: difficulty,
+        assessmentScore: assessmentScore,
+        goalType: goalType,
+        dailyStudyMinutes: dailyStudyMinutes,
       );
     } catch (e) {
-      final mockLessons = MockLessonData.getLessonsForLanguage(language, nativeLanguage: nativeLanguage);
-      if (mockLessons.isNotEmpty) return Result.success(mockLessons);
-      return Result.failure(
-        ServerFailure(message: 'Failed to fetch lessons: ${e.toString()}'),
-      );
+      return Result.failure(ServerFailure(message: 'Failed to generate lesson: ${e.toString()}'));
     }
   }
 
@@ -573,5 +601,73 @@ class LessonRepositoryImpl implements LessonRepository {
       goalType: goalType,
       dailyStudyMinutes: dailyStudyMinutes,
     );
+  }
+
+  /// Scale lesson content length based on daily study minutes
+  Lesson _adjustLessonForStudyTime(Lesson lesson, int? dailyStudyMinutes) {
+    if (dailyStudyMinutes == null) return lesson;
+    if (lesson.content == null) return lesson;
+
+    int wordCount = 5;
+    if (dailyStudyMinutes <= 10) {
+      wordCount = 3;
+    } else if (dailyStudyMinutes <= 20) {
+      wordCount = 5;
+    } else {
+      wordCount = 8;
+    }
+
+    final rawContent = lesson.content!.content;
+    final Map<String, dynamic> newContent = Map.from(rawContent);
+
+    if (newContent['sections'] != null) {
+      final sections = List<Map<String, dynamic>>.from(
+        newContent['sections'].map((s) => Map<String, dynamic>.from(s))
+      );
+
+      for (var i = 0; i < sections.length; i++) {
+        final section = sections[i];
+        if (section['type'] == 'vocabulary' && section['items'] != null) {
+          final items = List<dynamic>.from(section['items']);
+          if (items.length > wordCount) {
+            section['items'] = items.sublist(0, wordCount);
+          }
+        }
+        if (section['type'] == 'practice' && section['exercises'] != null) {
+          final exercises = List<dynamic>.from(section['exercises']);
+          if (exercises.length > wordCount) {
+            section['exercises'] = exercises.sublist(0, wordCount);
+          }
+        }
+      }
+      newContent['sections'] = sections;
+    }
+
+    final metadata = lesson.metadata.copyWith(
+      estimatedDurationMinutes: dailyStudyMinutes,
+    );
+
+    return lesson.copyWith(
+      metadata: metadata,
+      content: LessonContent(
+        lessonId: lesson.content!.lessonId,
+        lastUpdated: lesson.content!.lastUpdated,
+        content: newContent,
+      ),
+    );
+  }
+
+  /// Retrieve daily study minutes setting from SharedPreferences
+  int? _getDailyStudyMinutes() {
+    final goalJsonString = _prefs.getString('learning_goal_preferences');
+    if (goalJsonString != null) {
+      try {
+        final goalJson = jsonDecode(goalJsonString) as Map<String, dynamic>;
+        return goalJson['dailyStudyMinutes'] as int?;
+      } catch (e) {
+        print('Error parsing goal preferences: $e');
+      }
+    }
+    return null;
   }
 }

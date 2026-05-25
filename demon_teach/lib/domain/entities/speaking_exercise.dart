@@ -5,15 +5,17 @@ class PronunciationFeedback extends Entity {
   final double accuracyScore; // 0.0 to 1.0
   final String feedback;
   final List<String> suggestions;
+  final String? feedbackAudioBase64; // TTS audio of feedback in base64 (MP3)
 
   const PronunciationFeedback({
     required this.accuracyScore,
     required this.feedback,
     required this.suggestions,
+    this.feedbackAudioBase64,
   });
 
   @override
-  List<Object?> get props => [accuracyScore, feedback, suggestions];
+  List<Object?> get props => [accuracyScore, feedback, suggestions, feedbackAudioBase64];
 
   /// Convert to JSON
   Map<String, dynamic> toJson() {
@@ -21,6 +23,7 @@ class PronunciationFeedback extends Entity {
       'accuracyScore': accuracyScore,
       'feedback': feedback,
       'suggestions': suggestions,
+      if (feedbackAudioBase64 != null) 'feedbackAudioBase64': feedbackAudioBase64,
     };
   }
 
@@ -30,6 +33,7 @@ class PronunciationFeedback extends Entity {
       accuracyScore: (json['accuracyScore'] as num).toDouble(),
       feedback: json['feedback'] as String,
       suggestions: List<String>.from(json['suggestions'] as List),
+      feedbackAudioBase64: json['feedbackAudioBase64'] as String?,
     );
   }
 }

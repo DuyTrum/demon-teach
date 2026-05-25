@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/theme/app_theme.dart';
@@ -10,6 +11,7 @@ import 'package:demon_teach/presentation/screens/learning_path/learning_path_scr
 import 'package:demon_teach/presentation/providers/learning_path_provider.dart';
 import 'package:demon_teach/presentation/providers/progress_provider.dart';
 import 'package:demon_teach/presentation/providers/achievement_provider.dart';
+import 'package:demon_teach/presentation/widgets/common/demon_background_particles.dart';
 
 class LessonCompletionScreen extends ConsumerStatefulWidget {
   final Lesson lesson;
@@ -103,142 +105,175 @@ class _LessonCompletionScreenState extends ConsumerState<LessonCompletionScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingLg),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Success animation
-              ScaleTransition(
-                scale: _scaleAnimation,
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: AppTheme.successColor,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.successColor.withOpacity(0.3),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.check,
-                    size: 60,
-                    color: Colors.white,
-                  ),
-                ),
+      backgroundColor: AppTheme.demonBgGradientBot,
+      body: Stack(
+        children: [
+          // Background Gradient
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.demonBgGradientTop,
+                  AppTheme.demonBgGradientMid,
+                  AppTheme.demonBgGradientBot,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-
-              const SizedBox(height: AppTheme.spacingXl),
-
-              // Congratulations text
-              Text(
-                'Lesson Complete!',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: AppTheme.spacingSm),
-
-              Text(
-                'Great job! You\'ve completed this lesson.',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppTheme.textSecondaryColor,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: AppTheme.spacingXl),
-
-              // Stats cards
-              _buildStatsCard(),
-
-              const SizedBox(height: AppTheme.spacingXl),
-
-              // Lesson info
-              _buildLessonInfo(),
-
-              const Spacer(),
-
-              // Action buttons
-              if (!_isCompleting) ...[
-                CustomButton(
-                  text: 'Continue Learning',
-                  onPressed: () {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  },
-                  width: double.infinity,
-                  icon: Icons.arrow_forward,
-                ),
-                const SizedBox(height: AppTheme.spacingSm),
-                CustomButton(
-                  text: 'Review Lesson',
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  isOutlined: true,
-                  width: double.infinity,
-                  icon: Icons.replay,
-                ),
-              ] else
-                const Center(
-                  child: CircularProgressIndicator(),
-                ),
-            ],
+            ),
           ),
-        ),
+          // Eerie particles
+          const Positioned.fill(child: DemonBackgroundParticles()),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.spacingLg),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 20),
+                  // Success animation
+                  ScaleTransition(
+                    scale: _scaleAnimation,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: AppTheme.demonGlowGreen,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.demonGlowGreen.withOpacity(0.4),
+                            blurRadius: 25,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        size: 60,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: AppTheme.spacingXl),
+
+                  // Congratulations text
+                  const Text(
+                    'Hoàn thành bài học! 😈',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(color: AppTheme.demonGlowPurple, blurRadius: 15),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: AppTheme.spacingSm),
+
+                  const Text(
+                    'Làm tốt lắm! Ngươi đã hoàn thành thử thách hôm nay.',
+                    style: TextStyle(
+                      color: AppTheme.demonTextMuted,
+                      fontSize: 15,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: AppTheme.spacingXl),
+
+                  // Stats cards
+                  _buildStatsCard(),
+
+                  const SizedBox(height: AppTheme.spacingXl),
+
+                  // Lesson info
+                  _buildLessonInfo(),
+
+                  const Spacer(),
+
+                  // Action buttons
+                  if (!_isCompleting) ...[
+                    CustomButton(
+                      text: 'Tiếp tục hành trình',
+                      onPressed: () {
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+                      },
+                      width: double.infinity,
+                      icon: Icons.arrow_forward,
+                    ),
+                    const SizedBox(height: AppTheme.spacingSm),
+                    CustomButton(
+                      text: 'Xem lại bài học',
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      isOutlined: true,
+                      width: double.infinity,
+                      icon: Icons.replay,
+                    ),
+                  ] else
+                    const Center(
+                      child: CircularProgressIndicator(color: AppTheme.demonGlowPurple),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildStatsCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingLg),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildStatItem(
-              icon: Icons.star,
-              label: 'Score',
-              value: '${widget.score}',
-              color: AppTheme.warningColor,
-            ),
-            Container(
-              width: 1,
-              height: 50,
-              color: AppTheme.surfaceColor,
-            ),
-            _buildStatItem(
-              icon: Icons.timer,
-              label: 'Time',
-              value: _formatTime(widget.timeSpent),
-              color: AppTheme.primaryColor,
-            ),
-            Container(
-              width: 1,
-              height: 50,
-              color: AppTheme.surfaceColor,
-            ),
-            _buildStatItem(
-              icon: Icons.emoji_events,
-              label: 'XP',
-              value: '+${_calculateXP()}',
-              color: AppTheme.successColor,
-            ),
-          ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.demonNodeLocked.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          padding: const EdgeInsets.all(AppTheme.spacingLg),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem(
+                icon: Icons.star,
+                label: 'Điểm số',
+                value: '${widget.score}',
+                color: Colors.orangeAccent,
+              ),
+              Container(
+                width: 1,
+                height: 50,
+                color: Colors.white.withOpacity(0.1),
+              ),
+              _buildStatItem(
+                icon: Icons.timer,
+                label: 'Thời gian',
+                value: _formatTime(widget.timeSpent),
+                color: AppTheme.demonGlowPurple,
+              ),
+              Container(
+                width: 1,
+                height: 50,
+                color: Colors.white.withOpacity(0.1),
+              ),
+              _buildStatItem(
+                icon: Icons.emoji_events,
+                label: 'XP',
+                value: '+${_calculateXP()}',
+                color: AppTheme.demonGlowGreen,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -252,71 +287,81 @@ class _LessonCompletionScreenState extends ConsumerState<LessonCompletionScreen>
   }) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 32),
+        Icon(icon, color: color, size: 30),
         const SizedBox(height: AppTheme.spacingSm),
         Text(
           value,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: color,
+            fontSize: 20,
+            shadows: [Shadow(color: color.withOpacity(0.3), blurRadius: 5)],
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textSecondaryColor,
-              ),
+          style: const TextStyle(
+            color: AppTheme.demonTextMuted,
+            fontSize: 12,
+          ),
         ),
       ],
     );
   }
 
   Widget _buildLessonInfo() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingMd),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacingSm),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-              ),
-              child: Text(
-                widget.lesson.metadata.category.icon,
-                style: const TextStyle(fontSize: 32),
-              ),
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
+      decoration: BoxDecoration(
+        color: AppTheme.demonCardDark.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.demonGlowPurple.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppTheme.spacingSm),
+            decoration: BoxDecoration(
+              color: AppTheme.demonGlowPurple.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.demonGlowPurple.withOpacity(0.3)),
             ),
-            const SizedBox(width: AppTheme.spacingMd),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.lesson.metadata.title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+            child: Text(
+              widget.lesson.metadata.category.icon,
+              style: const TextStyle(fontSize: 30),
+            ),
+          ),
+          const SizedBox(width: AppTheme.spacingMd),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.lesson.metadata.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 16,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${widget.lesson.metadata.category.displayName} • ${widget.lesson.metadata.difficulty.displayName}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.textSecondaryColor,
-                        ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.lesson.metadata.category.displayName} • ${widget.lesson.metadata.difficulty.displayName}',
+                  style: const TextStyle(
+                    color: AppTheme.demonTextMuted,
+                    fontSize: 12,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const Icon(
-              Icons.check_circle,
-              color: AppTheme.successColor,
-              size: 32,
-            ),
-          ],
-        ),
+          ),
+          const Icon(
+            Icons.check_circle,
+            color: AppTheme.demonGlowGreen,
+            size: 32,
+          ),
+        ],
       ),
     );
   }
@@ -325,7 +370,7 @@ class _LessonCompletionScreenState extends ConsumerState<LessonCompletionScreen>
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
     if (minutes > 0) {
-      return '$minutes min ${remainingSeconds}s';
+      return '$minutes p ${remainingSeconds}s';
     }
     return '${remainingSeconds}s';
   }

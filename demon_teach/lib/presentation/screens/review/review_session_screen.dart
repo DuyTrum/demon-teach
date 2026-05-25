@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/theme/app_theme.dart';
@@ -6,8 +7,10 @@ import 'package:demon_teach/domain/entities/flashcard.dart';
 import 'package:demon_teach/presentation/providers/review_provider.dart';
 import 'package:demon_teach/presentation/providers/flashcard_provider.dart';
 import 'package:demon_teach/presentation/widgets/flashcard_widget.dart';
+import 'package:demon_teach/presentation/widgets/common/demon_background_particles.dart';
+import 'package:demon_teach/core/services/audio_feedback_service.dart';
 
-/// Review session screen for spaced repetition
+/// Review session screen for spaced repetition (Demon Theme)
 class ReviewSessionScreen extends ConsumerStatefulWidget {
   final String userId;
 
@@ -34,25 +37,37 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
     });
   }
 
+  Future<void> _playSfx(String type) async {
+    await ref.read(audioFeedbackServiceProvider).playSfx(type);
+  }
+
   @override
   Widget build(BuildContext context) {
     final reviewState = ref.watch(reviewProvider);
 
     if (reviewState.isLoading) {
       return Scaffold(
+        backgroundColor: AppTheme.demonBgGradientBot,
         appBar: AppBar(
-          title: const Text('Review Session'),
+          title: const Text('Phiên ôn tập', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.transparent,
+          iconTheme: const IconThemeData(color: Colors.white),
+          elevation: 0,
         ),
         body: const Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(color: AppTheme.demonGlowPurple),
         ),
       );
     }
 
     if (reviewState.error != null) {
       return Scaffold(
+        backgroundColor: AppTheme.demonBgGradientBot,
         appBar: AppBar(
-          title: const Text('Review Session'),
+          title: const Text('Phiên ôn tập', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.transparent,
+          iconTheme: const IconThemeData(color: Colors.white),
+          elevation: 0,
         ),
         body: Center(
           child: Column(
@@ -61,23 +76,25 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
               const Icon(
                 Icons.error_outline,
                 size: 64,
-                color: AppTheme.errorColor,
+                color: Colors.redAccent,
               ),
               const SizedBox(height: AppTheme.spacingMd),
               Text(
-                'Error: ${reviewState.error}',
-                style: Theme.of(context).textTheme.bodyLarge,
+                'Lỗi: ${reviewState.error}',
+                style: const TextStyle(color: Colors.white70),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppTheme.spacingLg),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.demonGlowPurple,
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: () {
                   ref.read(reviewProvider.notifier).clearError();
-                  ref
-                      .read(reviewProvider.notifier)
-                      .loadDueReviews(widget.userId);
+                  ref.read(reviewProvider.notifier).loadDueReviews(widget.userId);
                 },
-                child: const Text('Retry'),
+                child: const Text('Thử lại'),
               ),
             ],
           ),
@@ -87,38 +104,72 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
 
     if (reviewState.dueReviews.isEmpty) {
       return Scaffold(
+        backgroundColor: AppTheme.demonBgGradientBot,
         appBar: AppBar(
-          title: const Text('Review Session'),
+          title: const Text('Phiên ôn tập', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.transparent,
+          iconTheme: const IconThemeData(color: Colors.white),
+          elevation: 0,
         ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.check_circle_outline,
-                size: 100,
-                color: AppTheme.successColor,
-              ),
-              const SizedBox(height: AppTheme.spacingLg),
-              Text(
-                'No reviews due!',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: AppTheme.spacingSm),
-              Text(
-                'Great job! Come back later for more reviews.',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppTheme.textSecondaryColor,
+        body: Stack(
+          children: [
+            const Positioned.fill(child: DemonBackgroundParticles()),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.demonGlowGreen.withOpacity(0.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.demonGlowGreen.withOpacity(0.4),
+                          blurRadius: 30,
+                          spreadRadius: 5,
+                        )
+                      ],
                     ),
-                textAlign: TextAlign.center,
+                    child: const Icon(
+                      Icons.check_circle_outline,
+                      size: 80,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  const Text(
+                    'Không có mục cần ôn!',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingSm),
+                  Text(
+                    'Kiến thức ác quỷ của bạn đang rất vững chắc.\nHãy quay lại sau.',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppTheme.demonTextMuted,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppTheme.spacingXl),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.demonNodeLocked,
+                      foregroundColor: Colors.white,
+                      side: BorderSide(color: AppTheme.demonGlowGreen.withOpacity(0.5)),
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Quay lại bản đồ', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppTheme.spacingXl),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Back to Home'),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
@@ -128,25 +179,65 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
     }
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: AppTheme.demonBgGradientBot,
       appBar: AppBar(
         title: Text(
-          'Review ${reviewState.currentReviewNumber}/${reviewState.totalReviews}',
+          'Ôn tập ${reviewState.currentReviewNumber}/${reviewState.totalReviews}',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
+        backgroundColor: Colors.black.withOpacity(0.3),
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
         actions: [
           Padding(
             padding: const EdgeInsets.all(AppTheme.spacingMd),
             child: Center(
-              child: Text(
-                '${reviewState.remainingReviews} left',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
-                    ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.demonGlowPurple.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.demonGlowPurple.withOpacity(0.5)),
+                ),
+                child: Text(
+                  'Còn lại ${reviewState.remainingReviews}',
+                  style: const TextStyle(
+                    color: AppTheme.demonGlowPurple,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ),
         ],
       ),
-      body: _buildReviewContent(context, reviewState),
+      body: Stack(
+        children: [
+          // Background Gradient
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.demonBgGradientTop,
+                  AppTheme.demonBgGradientMid,
+                  AppTheme.demonBgGradientBot,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+          
+          // Eerie Particles
+          const Positioned.fill(child: DemonBackgroundParticles()),
+
+          // Main Content
+          SafeArea(
+            child: _buildReviewContent(context, reviewState),
+          ),
+        ],
+      ),
     );
   }
 
@@ -156,13 +247,25 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
 
     return Column(
       children: [
-        // Progress indicator
-        LinearProgressIndicator(
-          value: reviewState.currentReviewNumber / reviewState.totalReviews,
-          backgroundColor: Colors.grey[200],
-          valueColor:
-              const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+        // Progress indicator with neon glow
+        Container(
+          height: 4,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.demonGlowPurple.withOpacity(0.5),
+                blurRadius: 10,
+              )
+            ],
+          ),
+          child: LinearProgressIndicator(
+            value: reviewState.currentReviewNumber / reviewState.totalReviews,
+            backgroundColor: AppTheme.demonNodeLocked,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.demonGlowPurple),
+          ),
         ),
+        
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(AppTheme.spacingLg),
@@ -171,14 +274,23 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
                 // Review type badge
                 _buildReviewTypeBadge(currentReview.type),
                 const SizedBox(height: AppTheme.spacingLg),
-                // Review content
+                
+                // Review content (Flashcard)
                 Expanded(
                   child: _buildReviewItemContent(currentReview),
                 ),
+                
                 const SizedBox(height: AppTheme.spacingLg),
+                
                 // Difficulty rating buttons (shown after flip)
-                if (_isFlipped) _buildDifficultyButtons(),
+                AnimatedOpacity(
+                  opacity: _isFlipped ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: _isFlipped ? _buildDifficultyButtons() : const SizedBox.shrink(),
+                ),
+                
                 const SizedBox(height: AppTheme.spacingMd),
+                
                 // Submit button
                 if (_isFlipped && _selectedDifficulty != null)
                   _buildSubmitButton(reviewState),
@@ -198,59 +310,70 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
     switch (type) {
       case ReviewItemType.flashcard:
         icon = Icons.style;
-        label = 'Flashcard';
-        color = AppTheme.primaryColor;
+        label = 'Thẻ từ';
+        color = AppTheme.demonGlowPurple;
         break;
       case ReviewItemType.quiz:
         icon = Icons.quiz;
-        label = 'Quiz';
-        color = AppTheme.accentColor;
+        label = 'Trắc nghiệm';
+        color = Colors.orangeAccent;
         break;
       case ReviewItemType.listening:
         icon = Icons.headphones;
-        label = 'Listening';
-        color = AppTheme.successColor;
+        label = 'Luyện nghe';
+        color = AppTheme.demonGlowGreen;
         break;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingMd,
-        vertical: AppTheme.spacingSm,
-      ),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: AppTheme.spacingSm),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
           ),
-        ],
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withOpacity(0.5)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.2),
+                blurRadius: 10,
+              )
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildReviewItemContent(ReviewItem reviewItem) {
-    // For now, we'll focus on flashcard reviews
-    // Quiz and listening reviews can be added later
     if (reviewItem.type == ReviewItemType.flashcard) {
       return _buildFlashcardReview(reviewItem);
     }
 
     return Center(
       child: Text(
-        'Review type ${reviewItem.type.displayName} not yet implemented',
-        style: Theme.of(context).textTheme.bodyLarge,
+        'Kiểu ôn tập ${reviewItem.type.displayName} chưa được triển khai',
+        style: const TextStyle(color: Colors.white),
       ),
     );
   }
@@ -263,21 +386,28 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
           .getFlashcardById(reviewItem.contentId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: AppTheme.demonGlowPurple));
         }
 
         if (snapshot.hasError) {
           return Center(
-            child: Text('Error loading flashcard: ${snapshot.error}'),
+            child: Text('Lỗi tải thẻ từ: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent)),
           );
         }
 
         return snapshot.data!.when(
           success: (flashcard) => GestureDetector(
             onTap: () {
-              setState(() {
-                _isFlipped = !_isFlipped;
-              });
+              if (!_isFlipped) {
+                _playSfx('crystal'); // Flip sound
+                setState(() {
+                  _isFlipped = true;
+                });
+              } else {
+                setState(() {
+                  _isFlipped = false;
+                });
+              }
             },
             child: FlashcardWidget(
               flashcard: flashcard,
@@ -285,7 +415,7 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
             ),
           ),
           failure: (failure) => Center(
-            child: Text('Error: ${failure.message}'),
+            child: Text('Lỗi: ${failure.message}', style: const TextStyle(color: Colors.redAccent)),
           ),
         );
       },
@@ -296,9 +426,14 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'How well did you remember?',
-          style: Theme.of(context).textTheme.titleMedium,
+        const Text(
+          'Mức độ ghi nhớ của bạn?',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+            letterSpacing: 1.1,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppTheme.spacingMd),
@@ -307,24 +442,24 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
             Expanded(
               child: _buildDifficultyButton(
                 DifficultyRating.hard,
-                '😰 Hard',
-                AppTheme.errorColor,
+                '😰 Khó',
+                Colors.redAccent,
               ),
             ),
             const SizedBox(width: AppTheme.spacingSm),
             Expanded(
               child: _buildDifficultyButton(
                 DifficultyRating.medium,
-                '🤔 Medium',
-                AppTheme.warningColor,
+                '🤔 T.Bình',
+                Colors.orangeAccent,
               ),
             ),
             const SizedBox(width: AppTheme.spacingSm),
             Expanded(
               child: _buildDifficultyButton(
                 DifficultyRating.easy,
-                '😊 Easy',
-                AppTheme.successColor,
+                '😊 Dễ',
+                AppTheme.demonGlowGreen,
               ),
             ),
           ],
@@ -340,25 +475,42 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
   ) {
     final isSelected = _selectedDifficulty == rating;
 
-    return OutlinedButton(
-      onPressed: () {
+    return GestureDetector(
+      onTap: () {
+        _playSfx('rune'); // Selection sound
         setState(() {
           _selectedDifficulty = rating;
         });
       },
-      style: OutlinedButton.styleFrom(
-        backgroundColor: isSelected ? color.withOpacity(0.1) : null,
-        side: BorderSide(
-          color: isSelected ? color : Colors.grey,
-          width: isSelected ? 2 : 1,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.2) : AppTheme.demonNodeLocked.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? color : color.withOpacity(0.3),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.4),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  )
+                ]
+              : null,
         ),
-        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? color : AppTheme.textPrimaryColor,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : color.withOpacity(0.8),
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
         ),
       ),
     );
@@ -374,7 +526,14 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
                 _submitReview();
               },
         style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+          backgroundColor: AppTheme.demonGlowPurple,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 8,
+          shadowColor: AppTheme.demonGlowPurple,
         ),
         child: reviewState.isSubmitting
             ? const SizedBox(
@@ -385,13 +544,25 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text('Submit & Continue'),
+            : const Text(
+                'Gửi & Tiếp tục',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+              ),
       ),
     );
   }
 
   void _submitReview() {
     if (_selectedDifficulty == null) return;
+    
+    final reviewState = ref.read(reviewProvider);
+    final isLast = !reviewState.hasNext;
+
+    if (isLast) {
+      _playSfx('victory');
+    } else {
+      _playSfx('whisper');
+    }
 
     // Map difficulty to quality score
     final quality = ref
@@ -416,55 +587,82 @@ class _ReviewSessionScreenState extends ConsumerState<ReviewSessionScreen> {
     final reviewState = ref.watch(reviewProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Review Complete'),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingXl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.celebration,
-                size: 100,
-                color: AppTheme.successColor,
-              ),
-              const SizedBox(height: AppTheme.spacingXl),
-              Text(
-                'Great Job!',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      color: AppTheme.primaryColor,
-                      fontWeight: FontWeight.bold,
+      backgroundColor: AppTheme.demonBgGradientBot,
+      body: Stack(
+        children: [
+          const Positioned.fill(child: DemonBackgroundParticles()),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.spacingXl),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(30),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.demonGlowPurple.withOpacity(0.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.demonGlowPurple.withOpacity(0.5),
+                          blurRadius: 50,
+                          spreadRadius: 10,
+                        )
+                      ],
                     ),
-              ),
-              const SizedBox(height: AppTheme.spacingMd),
-              Text(
-                'You completed ${reviewState.totalReviews} reviews',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppTheme.spacingSm),
-              Text(
-                'Keep up the great work!',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppTheme.textSecondaryColor,
+                    child: const Icon(
+                      Icons.auto_awesome,
+                      size: 100,
+                      color: Colors.white,
                     ),
-              ),
-              const SizedBox(height: AppTheme.spacingXl * 2),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: AppTheme.spacingMd),
                   ),
-                  child: const Text('Back to Home'),
-                ),
+                  const SizedBox(height: AppTheme.spacingXl),
+                  const Text(
+                    'Đã hoàn thành ôn tập',
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingMd),
+                  Text(
+                    'Bạn đã vượt qua ${reviewState.totalReviews} lượt ôn tập',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingSm),
+                  Text(
+                    'Kiến thức ác quỷ của bạn ngày càng mạnh mẽ.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.demonTextMuted,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingXl * 2),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.demonNodeLocked,
+                        foregroundColor: Colors.white,
+                        side: BorderSide(color: AppTheme.demonGlowPurple.withOpacity(0.5)),
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text('Quay lại bản đồ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

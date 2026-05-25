@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:just_audio/just_audio.dart';
 import 'package:demon_teach/core/di/injection_container.dart';
 import 'package:demon_teach/domain/entities/speaking_exercise.dart';
@@ -14,7 +15,8 @@ final speakingRepositoryProvider = Provider<SpeakingRepository>((ref) {
 
 /// Provider for SpeakingController
 final speakingControllerProvider = Provider<SpeakingController>((ref) {
-  return SpeakingController();
+  final dio = ref.watch(dioProvider);
+  return SpeakingController(dio);
 });
 
 /// Provider for AudioPlayer (model audio)
@@ -240,9 +242,11 @@ class SpeakingNotifier extends StateNotifier<SpeakingState> {
     }
 
     // Analyze pronunciation
+    final langCode = state.exercise!.lessonId.split('_').first;
     final analyzeResult = await _controller.analyzePronunciation(
       recordingPath,
       state.exercise!.phrase,
+      language: langCode,
     );
 
     if (!analyzeResult.isSuccess) {
@@ -280,7 +284,8 @@ class SpeakingNotifier extends StateNotifier<SpeakingState> {
 
   /// Play user recording
   Future<void> playUserRecording() async {
-    if (state.exercise?.userRecordingPath == null) return;
+    final path = state.exercise?.userRecordingPath;
+    if (path == null) return;
 
     try {
       // Stop model audio if playing
@@ -290,7 +295,11 @@ class SpeakingNotifier extends StateNotifier<SpeakingState> {
 
       state = state.copyWith(isPlayingUser: true, error: null);
 
-      await _userPlayer.setFilePath(state.exercise!.userRecordingPath!);
+      if (kIsWeb || path.startsWith('blob:') || path.startsWith('http')) {
+        await _userPlayer.setUrl(path);
+      } else {
+        await _userPlayer.setFilePath(path);
+      }
       await _userPlayer.play();
     } catch (e) {
       state = state.copyWith(

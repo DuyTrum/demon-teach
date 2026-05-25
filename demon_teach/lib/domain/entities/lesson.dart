@@ -140,20 +140,89 @@ class LessonMetadata extends Entity {
 
   /// Create from JSON
   factory LessonMetadata.fromJson(Map<String, dynamic> json) {
-    return LessonMetadata(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
-      category: LessonCategory.values.firstWhere(
+    // Safely parse category, check lesson id or topic or fallback
+    LessonCategory category = LessonCategory.vocabulary;
+    if (json['category'] != null) {
+      category = LessonCategory.values.firstWhere(
         (e) => e.name == json['category'],
-      ),
-      difficulty: LessonDifficulty.values.firstWhere(
-        (e) => e.name == json['difficulty'],
-      ),
-      targetLanguage: json['targetLanguage'] as String,
-      estimatedDurationMinutes: json['estimatedDurationMinutes'] as int,
+        orElse: () => LessonCategory.vocabulary,
+      );
+    } else {
+      // Fallback: guess from id (e.g. en_basic_vocab_001 -> vocabulary)
+      final id = (json['id'] ?? '').toString().toLowerCase();
+      if (id.contains('vocab')) {
+        category = LessonCategory.vocabulary;
+      } else if (id.contains('grammar')) {
+        category = LessonCategory.grammar;
+      } else if (id.contains('listening')) {
+        category = LessonCategory.listening;
+      } else if (id.contains('speaking')) {
+        category = LessonCategory.speaking;
+      }
+    }
+
+    // Safely parse difficulty
+    LessonDifficulty difficulty = LessonDifficulty.beginner;
+    if (json['difficulty'] != null) {
+      difficulty = LessonDifficulty.values.firstWhere(
+        (e) => e.name == json['difficulty'] || e.name.toLowerCase() == json['difficulty'].toString().toLowerCase(),
+        orElse: () {
+          final diffStr = json['difficulty'].toString().toLowerCase();
+          if (diffStr == 'basic') return LessonDifficulty.beginner;
+          return LessonDifficulty.beginner;
+        },
+      );
+    } else {
+      final id = (json['id'] ?? '').toString().toLowerCase();
+      if (id.contains('basic')) {
+        difficulty = LessonDifficulty.beginner;
+      } else if (id.contains('intermediate')) {
+        difficulty = LessonDifficulty.intermediate;
+      } else if (id.contains('advanced')) {
+        difficulty = LessonDifficulty.advanced;
+      }
+    }
+
+    // Safely parse duration
+    final duration = json['estimatedDurationMinutes'] as int? ??
+        json['durationEstimate'] as int? ??
+        10;
+
+    return LessonMetadata(
+      id: (json['id'] ?? json['lessonId'] ?? '').toString(),
+      title: (json['title'] ?? '').toString(),
+      description: (json['description'] ?? json['topic'] ?? '').toString(),
+      category: category,
+      difficulty: difficulty,
+      targetLanguage: (json['targetLanguage'] ?? json['language'] ?? 'en').toString(),
+      estimatedDurationMinutes: duration,
       tags: List<String>.from(json['tags'] as List? ?? []),
       thumbnailUrl: json['thumbnailUrl'] as String?,
+    );
+  }
+
+  /// Create a copy with updated fields
+  LessonMetadata copyWith({
+    String? id,
+    String? title,
+    String? description,
+    LessonCategory? category,
+    LessonDifficulty? difficulty,
+    String? targetLanguage,
+    int? estimatedDurationMinutes,
+    List<String>? tags,
+    String? thumbnailUrl,
+  }) {
+    return LessonMetadata(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      category: category ?? this.category,
+      difficulty: difficulty ?? this.difficulty,
+      targetLanguage: targetLanguage ?? this.targetLanguage,
+      estimatedDurationMinutes: estimatedDurationMinutes ?? this.estimatedDurationMinutes,
+      tags: tags ?? this.tags,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
     );
   }
 }
@@ -185,9 +254,13 @@ class LessonContent extends Entity {
   /// Create from JSON
   factory LessonContent.fromJson(Map<String, dynamic> json) {
     return LessonContent(
-      lessonId: json['lessonId'] as String,
-      content: json['content'] as Map<String, dynamic>,
-      lastUpdated: DateTime.parse(json['lastUpdated'] as String),
+      lessonId: (json['lessonId'] ?? json['id'] ?? '').toString(),
+      content: json['content'] as Map<String, dynamic>? ?? json,
+      lastUpdated: json['lastUpdated'] != null
+          ? DateTime.parse(json['lastUpdated'] as String)
+          : json['updatedAt'] != null
+              ? DateTime.parse(json['updatedAt'] as String)
+              : DateTime.now(),
     );
   }
 }
@@ -271,11 +344,22 @@ class Lesson extends Entity {
 
   /// Create from JSON
   factory Lesson.fromJson(Map<String, dynamic> json) {
+    final metadataMap = json['metadata'] is Map<String, dynamic>
+        ? json['metadata'] as Map<String, dynamic>
+        : json;
+
+    final contentMap = json['content'] is Map<String, dynamic>
+        ? json['content'] as Map<String, dynamic>
+        : null;
+
     return Lesson(
-      metadata:
-          LessonMetadata.fromJson(json['metadata'] as Map<String, dynamic>),
-      content: json['content'] != null
-          ? LessonContent.fromJson(json['content'] as Map<String, dynamic>)
+      metadata: LessonMetadata.fromJson(metadataMap),
+      content: contentMap != null
+          ? LessonContent.fromJson({
+              'lessonId': json['id'] ?? json['lessonId'],
+              'content': contentMap,
+              'lastUpdated': json['updatedAt'] ?? json['lastUpdated'],
+            })
           : null,
       status: LessonStatus.values.firstWhere(
         (e) => e.name == json['status'],

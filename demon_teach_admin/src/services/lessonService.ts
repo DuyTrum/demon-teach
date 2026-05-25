@@ -32,6 +32,7 @@ export const lessonService = {
   async createLesson(lesson: {
     title: string;
     difficulty: string;
+    category: string;
     topic: string;
     targetLanguage: string;
     durationEstimate: number;
@@ -49,6 +50,7 @@ export const lessonService = {
     updates: {
       title?: string;
       difficulty?: string;
+      category?: string;
       topic?: string;
       targetLanguage?: string;
       durationEstimate?: number;

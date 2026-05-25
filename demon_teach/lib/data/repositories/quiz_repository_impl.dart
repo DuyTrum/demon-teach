@@ -1,12 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demon_teach/core/errors/failures.dart';
 import 'package:demon_teach/core/utils/result.dart';
 import 'package:demon_teach/domain/entities/quiz.dart';
 import 'package:demon_teach/domain/repositories/quiz_repository.dart';
-import 'package:demon_teach/data/datasources/local/mock_quiz_data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-/// Implementation of QuizRepository using SharedPreferences and mock data
+/// Implementation of QuizRepository using Firestore
 class QuizRepositoryImpl implements QuizRepository {
   final SharedPreferences _prefs;
   static const String _quizResultsKey = 'quiz_results';
@@ -16,17 +16,33 @@ class QuizRepositoryImpl implements QuizRepository {
   @override
   Future<Result<Quiz>> getQuizForLesson(String lessonId) async {
     try {
-      // Extract target language from lessonId (format: lesson_en_1, lesson_zh_1, etc.)
-      final parts = lessonId.split('_');
-      final targetLanguage = parts.length > 1 ? parts[1] : 'en';
+      final docSnap = await FirebaseFirestore.instance.collection('lessons').doc(lessonId).get();
+      if (!docSnap.exists || docSnap.data() == null) {
+        return Result.failure(
+          ServerFailure(message: 'Lesson $lessonId not found in Firestore.'),
+        );
+      }
 
-      // Get mock quiz
-      final quiz = MockQuizData.getQuizForLanguage(lessonId, targetLanguage);
+      final data = docSnap.data()!;
+      final content = data['content'] as Map<String, dynamic>?;
+      if (content == null || content['quiz'] == null) {
+        return Result.failure(
+          const ServerFailure(message: 'Quiz content is not generated for this lesson.'),
+        );
+      }
 
-      return Result.success(quiz);
+      final quizMap = Map<String, dynamic>.from(content['quiz'] as Map);
+      if (quizMap['lessonId'] == null) {
+        quizMap['lessonId'] = lessonId;
+      }
+      if (quizMap['id'] == null) {
+        quizMap['id'] = 'quiz_$lessonId';
+      }
+
+      return Result.success(Quiz.fromJson(quizMap));
     } catch (e) {
       return Result.failure(
-        CacheFailure(message: 'Failed to get quiz: ${e.toString()}'),
+        ServerFailure(message: 'Failed to get quiz: ${e.toString()}'),
       );
     }
   }
@@ -37,9 +53,8 @@ class QuizRepositoryImpl implements QuizRepository {
     List<QuizAnswer> answers,
   ) async {
     try {
-      // Get the quiz to calculate score
-      final parts = quizId.split('_');
-      final lessonId = parts.sublist(2).join('_');
+      // Reconstruct lessonId from quizId
+      final lessonId = quizId.replaceFirst('quiz_', '');
       final quizResult = await getQuizForLesson(lessonId);
 
       return quizResult.when(
@@ -53,7 +68,7 @@ class QuizRepositoryImpl implements QuizRepository {
           }
 
           final maxScore = quiz.totalPoints;
-          final percentage = (totalScore / maxScore) * 100;
+          final percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0.0;
           final passed = percentage >= quiz.passingScore;
 
           final result = QuizResult(
@@ -83,18 +98,7 @@ class QuizRepositoryImpl implements QuizRepository {
   @override
   Future<Result<Quiz>> getQuizById(String quizId) async {
     try {
-      // Extract lessonId from quizId (format: quiz_en_lessonId)
-      final parts = quizId.split('_');
-      if (parts.length < 3) {
-        return Result.failure(
-          const ValidationFailure(
-            field: 'quizId',
-            message: 'Invalid quiz ID format',
-          ),
-        );
-      }
-
-      final lessonId = parts.sublist(2).join('_');
+      final lessonId = quizId.replaceFirst('quiz_', '');
       return await getQuizForLesson(lessonId);
     } catch (e) {
       return Result.failure(
@@ -136,7 +140,6 @@ class QuizRepositoryImpl implements QuizRepository {
       results.add(result.toJson());
       await _prefs.setString(_quizResultsKey, json.encode(results));
     } catch (e) {
-      // Log error but don't throw
       print('Failed to save quiz result: $e');
     }
   }

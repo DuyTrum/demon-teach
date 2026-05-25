@@ -19,7 +19,8 @@ export interface AuthResponse {
 export interface Lesson {
   id: string;
   title: string;
-  difficulty: 'basic' | 'intermediate' | 'advanced';
+  difficulty: 'beginner' | 'elementary' | 'intermediate' | 'upperIntermediate' | 'advanced';
+  category: 'vocabulary' | 'grammar' | 'listening' | 'speaking' | 'reading' | 'writing';
   topic: string;
   targetLanguage: 'en' | 'zh' | 'ko';
   durationEstimate: number;
@@ -93,6 +94,7 @@ export interface LessonVersion {
   version: number;
   title: string;
   difficulty: string;
+  category: string;
   topic: string;
   targetLanguage: string;
   durationEstimate: number;
