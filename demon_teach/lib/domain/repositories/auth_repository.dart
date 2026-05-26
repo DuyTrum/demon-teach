@@ -27,4 +27,7 @@ abstract class AuthRepository {
     String? nativeLanguage,
     List<String>? targetLanguages,
   });
+
+  /// Update user display name
+  Future<Result<User>> updateDisplayName(String displayName);
 }

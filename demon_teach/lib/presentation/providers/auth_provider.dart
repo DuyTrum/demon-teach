@@ -1,7 +1,7 @@
+import 'package:demon_teach/core/utils/result.dart';
 import 'package:demon_teach/domain/entities/user.dart';
 import 'package:demon_teach/domain/repositories/auth_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:demon_teach/core/di/injection_container.dart';
 import 'package:demon_teach/presentation/providers/language_provider.dart';
 
 // Repository provider (to be overridden in main)
@@ -41,20 +41,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
   final LanguageNotifier _languageNotifier;
 
-  AuthNotifier(this._repository, this._languageNotifier) : super(const AuthState()) {
+  AuthNotifier(this._repository, this._languageNotifier)
+      : super(const AuthState()) {
     checkAuthStatus();
   }
 
   Future<void> checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
     final isAuth = await _repository.isAuthenticated();
-    
+
     if (isAuth) {
       final result = await _repository.getCurrentUser();
       result.when(
         success: (user) {
-          state = AuthState(user: user, isAuthenticated: true, isLoading: false);
-          if (user.nativeLanguage.isNotEmpty && user.targetLanguages.isNotEmpty) {
+          state =
+              AuthState(user: user, isAuthenticated: true, isLoading: false);
+          if (user.nativeLanguage.isNotEmpty &&
+              user.targetLanguages.isNotEmpty) {
             _languageNotifier.savePreferences(
               targetLanguage: user.targetLanguages.first,
               nativeLanguage: user.nativeLanguage,
@@ -64,7 +67,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           }
         },
         failure: (failure) {
-          state = AuthState(isAuthenticated: false, isLoading: false, error: failure.message);
+          state = AuthState(
+              isAuthenticated: false, isLoading: false, error: failure.message);
         },
       );
     } else {
@@ -96,7 +100,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
-  Future<bool> register(String email, String password, String nativeLanguage) async {
+  Future<bool> register(
+      String email, String password, String nativeLanguage) async {
     state = state.copyWith(isLoading: true);
     final result = await _repository.register(email, password, nativeLanguage);
 
@@ -140,6 +145,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return false;
       },
     );
+  }
+
+  Future<Result<User>> updateDisplayName(String displayName) async {
+    state = state.copyWith(isLoading: true);
+    final result = await _repository.updateDisplayName(displayName);
+
+    result.when(
+      success: (user) {
+        state = AuthState(user: user, isAuthenticated: true, isLoading: false);
+      },
+      failure: (failure) {
+        state = state.copyWith(isLoading: false, error: failure.message);
+      },
+    );
+
+    return result;
   }
 }
 

@@ -30,13 +30,15 @@ class AuthRepositoryImpl implements AuthRepository {
 
       final fbUser = userCredential.user;
       if (fbUser == null) {
-        return Result.failure(const AuthFailure(message: 'Login failed - User is null'));
+        return Result.failure(
+            const AuthFailure(message: 'Login failed - User is null'));
       }
 
       // 2. Fetch/update user doc in Firestore
-      final userDoc = await _firestore.collection('users').doc(fbUser.uid).get();
+      final userDoc =
+          await _firestore.collection('users').doc(fbUser.uid).get();
       User user;
-      
+
       if (userDoc.exists) {
         user = User.fromJson({
           'id': fbUser.uid,
@@ -90,30 +92,33 @@ class AuthRepositoryImpl implements AuthRepository {
         return Result.failure(const AuthFailure(message: 'Not authenticated'));
       }
 
-      final userDoc = await _firestore.collection('users').doc(fbUser.uid).get();
+      final userDoc =
+          await _firestore.collection('users').doc(fbUser.uid).get();
       if (userDoc.exists) {
         final user = User.fromJson({
           'id': fbUser.uid,
           ...userDoc.data()!,
         });
         await _prefs.setString('current_user_id', user.id);
-        
+
         // Refresh token in storage
         final token = await fbUser.getIdToken();
         if (token != null) {
           await _storage.write(key: _tokenKey, value: token);
         }
-        
+
         return Result.success(user);
       }
-      return Result.failure(const AuthFailure(message: 'User profile not found in Firestore'));
+      return Result.failure(
+          const AuthFailure(message: 'User profile not found in Firestore'));
     } catch (e) {
       return Result.failure(AuthFailure(message: e.toString()));
     }
   }
 
   @override
-  Future<Result<User>> register(String email, String password, String nativeLanguage) async {
+  Future<Result<User>> register(
+      String email, String password, String nativeLanguage) async {
     try {
       // 1. Create user with Firebase Auth
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
@@ -123,7 +128,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
       final fbUser = userCredential.user;
       if (fbUser == null) {
-        return Result.failure(const AuthFailure(message: 'Registration failed - User is null'));
+        return Result.failure(
+            const AuthFailure(message: 'Registration failed - User is null'));
       }
 
       // 2. Save profile in Firestore
@@ -227,6 +233,34 @@ class AuthRepositoryImpl implements AuthRepository {
         return 'Thông tin đăng nhập không chính xác.';
       default:
         return e.message ?? 'Đã xảy ra lỗi bảo mật.';
+    }
+  }
+
+  @override
+  Future<Result<User>> updateDisplayName(String displayName) async {
+    try {
+      final fbUser = _firebaseAuth.currentUser;
+      if (fbUser == null) {
+        return Result.failure(const AuthFailure(message: 'Not authenticated'));
+      }
+
+      final docRef = _firestore.collection('users').doc(fbUser.uid);
+      await docRef.update({
+        'displayName': displayName,
+        'lastActiveAt': DateTime.now().toIso8601String(),
+      });
+
+      final userDoc = await docRef.get();
+      final user = User.fromJson({
+        'id': fbUser.uid,
+        ...userDoc.data()!,
+      });
+
+      return Result.success(user);
+    } on fb_auth.FirebaseAuthException catch (e) {
+      return Result.failure(AuthFailure(message: _mapFirebaseAuthException(e)));
+    } catch (e) {
+      return Result.failure(AuthFailure(message: e.toString()));
     }
   }
 }

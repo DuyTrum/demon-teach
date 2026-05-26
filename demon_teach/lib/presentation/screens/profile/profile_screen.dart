@@ -29,11 +29,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final languagePref = ref.read(languageProvider).preference;
     final String userId = user?.id ?? 'default_user';
     final String targetLang = languagePref?.targetLanguage ?? 'en';
-    
+
     ref.read(progressProvider.notifier).loadProgress(
-      userId: userId,
-      targetLanguage: targetLang,
-    );
+          userId: userId,
+          targetLanguage: targetLang,
+        );
   }
 
   @override
@@ -80,7 +80,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
           ),
-          
+
           // Eerie Particles
           const Positioned.fill(child: DemonBackgroundParticles()),
 
@@ -149,7 +149,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 24.0),
                       child: Center(
-                        child: CircularProgressIndicator(color: AppTheme.demonGlowPurple),
+                        child: CircularProgressIndicator(
+                            color: AppTheme.demonGlowPurple),
                       ),
                     )
                   else if (progress != null) ...[
@@ -210,7 +211,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String label, String value, IconData icon, Color color) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
@@ -283,11 +285,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppTheme.demonGlowPurple.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.demonGlowPurple.withOpacity(0.4)),
+                      border: Border.all(
+                          color: AppTheme.demonGlowPurple.withOpacity(0.4)),
                     ),
                     child: Text(
                       'Tổng $totalXP XP',
@@ -318,7 +322,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: LinearProgressIndicator(
                     value: pct,
                     backgroundColor: Colors.black.withOpacity(0.3),
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.demonGlowPurple),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppTheme.demonGlowPurple),
                   ),
                 ),
               ),
@@ -353,13 +358,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             children: [
               _buildSettingTile(
                 context,
+                icon: Icons.edit,
+                color: AppTheme.demonGlowGreen,
+                title: 'Đổi tên hiển thị',
+                onTap: () => _showEditDisplayNameDialog(context, ref),
+              ),
+              Divider(height: 1, color: Colors.white.withOpacity(0.1)),
+              _buildSettingTile(
+                context,
                 icon: Icons.language,
                 color: AppTheme.demonGlowPurple,
                 title: 'Thay đổi ngôn ngữ học',
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const LanguageSelectionScreen(isFromSettings: true),
+                      builder: (_) =>
+                          const LanguageSelectionScreen(isFromSettings: true),
                     ),
                   );
                 },
@@ -374,7 +388,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _showDemonDialog(
                     context,
                     title: 'Thông báo',
-                    content: 'Lời thì thầm của ác quỷ đang được tinh chỉnh. Hãy quay lại sau!',
+                    content:
+                        'Lời thì thầm của ác quỷ đang được tinh chỉnh. Hãy quay lại sau!',
                   );
                 },
               ),
@@ -450,7 +465,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         backgroundColor: AppTheme.demonNodeLocked,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: isDestructive ? Colors.redAccent.withOpacity(0.5) : AppTheme.demonGlowPurple.withOpacity(0.5)),
+          side: BorderSide(
+              color: isDestructive
+                  ? Colors.redAccent.withOpacity(0.5)
+                  : AppTheme.demonGlowPurple.withOpacity(0.5)),
         ),
         title: Text(
           title,
@@ -466,19 +484,154 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy', style: TextStyle(color: AppTheme.demonTextMuted)),
+            child: const Text('Hủy',
+                style: TextStyle(color: AppTheme.demonTextMuted)),
           ),
           if (onConfirm != null)
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: isDestructive ? Colors.redAccent.withOpacity(0.2) : AppTheme.demonGlowPurple.withOpacity(0.2),
-                foregroundColor: isDestructive ? Colors.redAccent : AppTheme.demonGlowPurple,
-                side: BorderSide(color: isDestructive ? Colors.redAccent : AppTheme.demonGlowPurple),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: isDestructive
+                    ? Colors.redAccent.withOpacity(0.2)
+                    : AppTheme.demonGlowPurple.withOpacity(0.2),
+                foregroundColor:
+                    isDestructive ? Colors.redAccent : AppTheme.demonGlowPurple,
+                side: BorderSide(
+                    color: isDestructive
+                        ? Colors.redAccent
+                        : AppTheme.demonGlowPurple),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: onConfirm,
               child: Text(isDestructive ? 'Cắt đứt' : 'Xác nhận'),
             ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDisplayNameDialog(BuildContext context, WidgetRef ref) {
+    final user = ref.read(authProvider).user;
+    final TextEditingController controller = TextEditingController();
+
+    // Get current display name from Firestore or fallback to email username
+    String currentDisplayName = '';
+    if (user != null) {
+      final email = user.email;
+      if (email.isNotEmpty) {
+        currentDisplayName = email.split('@').first;
+      }
+    }
+    controller.text = currentDisplayName;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.demonNodeLocked,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppTheme.demonGlowPurple.withOpacity(0.5)),
+        ),
+        title: const Text(
+          'Đổi tên hiển thị',
+          style: TextStyle(
+            color: AppTheme.demonGlowPurple,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Tên này sẽ hiển thị trên bảng xếp hạng',
+              style: TextStyle(color: AppTheme.demonTextMuted, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              maxLength: 20,
+              decoration: InputDecoration(
+                hintText: 'Nhập tên hiển thị',
+                hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                filled: true,
+                fillColor: Colors.black.withOpacity(0.3),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                      color: AppTheme.demonGlowPurple.withOpacity(0.3)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                      color: AppTheme.demonGlowPurple.withOpacity(0.3)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                      color: AppTheme.demonGlowPurple, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy',
+                style: TextStyle(color: AppTheme.demonTextMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.demonGlowPurple.withOpacity(0.2),
+              foregroundColor: AppTheme.demonGlowPurple,
+              side: const BorderSide(color: AppTheme.demonGlowPurple),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tên hiển thị không được để trống'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+
+              // Update display name
+              final result = await ref
+                  .read(authProvider.notifier)
+                  .updateDisplayName(newName);
+
+              if (context.mounted) {
+                result.when(
+                  success: (_) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Đã đổi tên thành "$newName"'),
+                        backgroundColor: AppTheme.demonGlowGreen,
+                      ),
+                    );
+                  },
+                  failure: (failure) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Lỗi: ${failure.message}'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                  },
+                );
+              }
+            },
+            child: const Text('Lưu'),
+          ),
         ],
       ),
     );
