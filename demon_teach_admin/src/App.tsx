@@ -11,6 +11,12 @@ import LessonList from './components/Lessons/LessonList';
 import LessonForm from './components/Lessons/LessonForm';
 import LessonDetail from './components/Lessons/LessonDetail';
 import AiGenerator from './components/Generator/AiGenerator';
+import Dashboard from './components/Dashboard/Dashboard';
+import UserList from './components/Users/UserList';
+import LeaderboardManage from './components/Leaderboard/LeaderboardManage';
+import NotificationForm from './components/Notifications/NotificationForm';
+import SystemData from './components/System/SystemData';
+import BackupData from './components/Backup/BackupData';
 
 function App() {
   return (
@@ -29,6 +35,72 @@ function App() {
       
       <Routes>
         <Route path="/login" element={<Login />} />
+        
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+        
+        <Route
+          path="/users"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <UserList />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+        
+        <Route
+          path="/leaderboard"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <LeaderboardManage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+        
+        <Route
+          path="/notifications"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <NotificationForm />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+        
+        <Route
+          path="/system"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <SystemData />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+        
+        <Route
+          path="/backup"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <BackupData />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
         
         <Route
           path="/lessons"
@@ -85,8 +157,8 @@ function App() {
           }
         />
         
-        <Route path="/" element={<Navigate to="/lessons" replace />} />
-        <Route path="*" element={<Navigate to="/lessons" replace />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,25 +1,17 @@
-const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { admin, db } = require('../config/firebase');
+const axios = require('axios');
+require('dotenv').config();
+
+const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
 
 /**
- * Generate JWT token
- */
-const generateToken = (userId, expiresIn = process.env.JWT_EXPIRES_IN || '7d') => {
-  return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET,
-    { expiresIn }
-  );
-};
-
-/**
- * Login user
+ * Login user via Firebase Auth REST API
+ * Returns Firebase ID Token + Refresh Token
  */
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -27,66 +19,89 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // Find user
-    const user = await User.findOne({ where: { email } });
-
-    if (!user) {
-      return res.status(401).json({
+    if (!FIREBASE_WEB_API_KEY) {
+      return res.status(500).json({
         success: false,
-        message: 'Invalid email or password'
+        message: 'FIREBASE_WEB_API_KEY is not configured on the server.'
       });
     }
 
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Account is inactive. Please contact support.'
-      });
+    // Use Firebase Auth REST API to sign in with email/password
+    const firebaseResponse = await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_WEB_API_KEY}`,
+      {
+        email,
+        password,
+        returnSecureToken: true
+      }
+    );
+
+    const { idToken, refreshToken, localId } = firebaseResponse.data;
+
+    // Fetch user profile from Firestore
+    let userProfile = null;
+    if (db) {
+      const userDoc = await db.collection('users').doc(localId).get();
+      if (userDoc.exists) {
+        userProfile = userDoc.data();
+      }
     }
 
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
-
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
+    // Determine role from custom claims or Firestore
+    let role = 'user';
+    try {
+      const userRecord = await admin.auth().getUser(localId);
+      if (userRecord.customClaims && userRecord.customClaims.role) {
+        role = userRecord.customClaims.role;
+      }
+    } catch (e) {
+      // Ignore if we can't fetch claims
     }
 
-    // Generate tokens
-    const accessToken = generateToken(user.id);
-    const refreshToken = generateToken(user.id, process.env.JWT_REFRESH_EXPIRES_IN || '30d');
+    // Fallback: check Firestore profile for role
+    if (role === 'user' && userProfile && userProfile.role) {
+      role = userProfile.role;
+    }
 
     res.json({
       success: true,
       message: 'Login successful',
       data: {
         user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          nativeLanguage: user.nativeLanguage,
-          targetLanguages: user.targetLanguages
+          id: localId,
+          email: email,
+          role: role,
+          nativeLanguage: userProfile?.nativeLanguage || 'vi',
+          targetLanguages: userProfile?.targetLanguages || []
         },
-        accessToken,
-        refreshToken
+        accessToken: idToken,
+        refreshToken: refreshToken
       }
     });
   } catch (error) {
+    // Map Firebase REST API errors
+    if (error.response && error.response.data && error.response.data.error) {
+      const fbError = error.response.data.error;
+      const errorMap = {
+        'EMAIL_NOT_FOUND': 'Invalid email or password',
+        'INVALID_PASSWORD': 'Invalid email or password',
+        'USER_DISABLED': 'Account is disabled. Please contact support.',
+        'INVALID_LOGIN_CREDENTIALS': 'Invalid email or password',
+      };
+      const message = errorMap[fbError.message] || fbError.message || 'Authentication failed';
+      return res.status(401).json({ success: false, message });
+    }
     next(error);
   }
 };
 
 /**
- * Register new user
+ * Register new user via Firebase Auth Admin SDK
  */
 exports.register = async (req, res, next) => {
   try {
     const { email, password, role = 'user', nativeLanguage, targetLanguages } = req.body;
 
-    // Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -94,7 +109,6 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    // Validate password strength
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
@@ -102,39 +116,70 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
-
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: 'User with this email already exists'
+    // Create user in Firebase Auth
+    let userRecord;
+    try {
+      userRecord = await admin.auth().createUser({
+        email,
+        password,
+        emailVerified: false
       });
+    } catch (fbErr) {
+      if (fbErr.code === 'auth/email-already-exists') {
+        return res.status(409).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+      throw fbErr;
     }
 
-    // Create user
-    const user = await User.create({
-      email,
-      password,
-      role: role === 'admin' ? 'admin' : 'user', // Only allow admin if explicitly set
-      nativeLanguage,
-      targetLanguages: targetLanguages || []
-    });
+    // Set custom claims for role
+    const assignedRole = role === 'admin' ? 'admin' : 'user';
+    await admin.auth().setCustomUserClaims(userRecord.uid, { role: assignedRole });
 
-    // Generate tokens
-    const accessToken = generateToken(user.id);
-    const refreshToken = generateToken(user.id, process.env.JWT_REFRESH_EXPIRES_IN || '30d');
+    // Create user profile in Firestore
+    const userProfile = {
+      email,
+      role: assignedRole,
+      nativeLanguage: nativeLanguage || 'vi',
+      targetLanguages: targetLanguages || [],
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString()
+    };
+
+    if (db) {
+      await db.collection('users').doc(userRecord.uid).set(userProfile);
+    }
+
+    // Sign in to get tokens
+    let accessToken = '';
+    let refreshToken = '';
+    if (FIREBASE_WEB_API_KEY) {
+      try {
+        const signInResp = await axios.post(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_WEB_API_KEY}`,
+          { email, password, returnSecureToken: true }
+        );
+        accessToken = signInResp.data.idToken;
+        refreshToken = signInResp.data.refreshToken;
+      } catch (e) {
+        // Generate a custom token as fallback
+        accessToken = await admin.auth().createCustomToken(userRecord.uid);
+      }
+    }
 
     res.status(201).json({
       success: true,
       message: 'Registration successful',
       data: {
         user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          nativeLanguage: user.nativeLanguage,
-          targetLanguages: user.targetLanguages
+          id: userRecord.uid,
+          email: email,
+          role: assignedRole,
+          nativeLanguage: userProfile.nativeLanguage,
+          targetLanguages: userProfile.targetLanguages
         },
         accessToken,
         refreshToken
@@ -146,7 +191,7 @@ exports.register = async (req, res, next) => {
 };
 
 /**
- * Refresh access token
+ * Refresh access token via Firebase Secure Token API
  */
 exports.refresh = async (req, res, next) => {
   try {
@@ -159,34 +204,35 @@ exports.refresh = async (req, res, next) => {
       });
     }
 
-    // Verify refresh token
-    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-
-    // Get user
-    const user = await User.findByPk(decoded.userId);
-
-    if (!user || !user.isActive) {
-      return res.status(401).json({
+    if (!FIREBASE_WEB_API_KEY) {
+      return res.status(500).json({
         success: false,
-        message: 'Invalid refresh token'
+        message: 'FIREBASE_WEB_API_KEY is not configured on the server.'
       });
     }
 
-    // Generate new access token
-    const accessToken = generateToken(user.id);
+    const response = await axios.post(
+      `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_WEB_API_KEY}`,
+      {
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken
+      }
+    );
 
     res.json({
       success: true,
       message: 'Token refreshed successfully',
       data: {
-        accessToken
+        accessToken: response.data.id_token,
+        refreshToken: response.data.refresh_token,
+        expiresIn: response.data.expires_in
       }
     });
   } catch (error) {
-    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+    if (error.response && error.response.data) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired refresh token'
+        message: 'Invalid refresh token'
       });
     }
     next(error);
@@ -194,40 +240,22 @@ exports.refresh = async (req, res, next) => {
 };
 
 /**
- * Get current user
- */
-exports.me = async (req, res, next) => {
-  try {
-    const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['password'] }
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: user
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Logout user (client-side token removal)
+ * Logout user
  */
 exports.logout = async (req, res, next) => {
   try {
-    // In a stateless JWT system, logout is handled client-side
-    // by removing the token from storage
+    // Revoke refresh tokens on the server side
+    if (req.user && req.user.id) {
+      try {
+        await admin.auth().revokeRefreshTokens(req.user.id);
+      } catch (e) {
+        // Ignore revocation errors
+      }
+    }
+
     res.json({
       success: true,
-      message: 'Logout successful'
+      message: 'Logged out successfully'
     });
   } catch (error) {
     next(error);
@@ -235,47 +263,76 @@ exports.logout = async (req, res, next) => {
 };
 
 /**
- * Update current user profile
+ * Get current user profile
+ */
+exports.me = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    let userProfile = {
+      id: userId,
+      email: req.user.email || '',
+      role: req.user.role || 'user'
+    };
+
+    // Fetch full profile from Firestore
+    if (db) {
+      const userDoc = await db.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        const data = userDoc.data();
+        userProfile = {
+          id: userId,
+          email: data.email || req.user.email || '',
+          role: data.role || req.user.role || 'user',
+          nativeLanguage: data.nativeLanguage || 'vi',
+          targetLanguages: data.targetLanguages || [],
+          createdAt: data.createdAt,
+          lastActiveAt: data.lastActiveAt
+        };
+      }
+    }
+
+    res.json({
+      success: true,
+      data: userProfile
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update user profile
  */
 exports.updateProfile = async (req, res, next) => {
   try {
-    const user = await User.findByPk(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
+    const userId = req.user.id;
     const { nativeLanguage, targetLanguages } = req.body;
 
-    if (nativeLanguage !== undefined) {
-      user.nativeLanguage = nativeLanguage;
+    const updateData = {};
+    if (nativeLanguage) updateData.nativeLanguage = nativeLanguage;
+    if (targetLanguages) updateData.targetLanguages = targetLanguages;
+    updateData.lastActiveAt = new Date().toISOString();
+
+    if (db) {
+      await db.collection('users').doc(userId).update(updateData);
     }
 
-    if (targetLanguages !== undefined) {
-      user.targetLanguages = targetLanguages;
+    // Return updated profile
+    let updatedProfile = { id: userId, ...updateData };
+    if (db) {
+      const userDoc = await db.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        updatedProfile = { id: userId, ...userDoc.data() };
+      }
     }
-
-    await user.save();
 
     res.json({
       success: true,
       message: 'Profile updated successfully',
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          nativeLanguage: user.nativeLanguage,
-          targetLanguages: user.targetLanguages
-        }
-      }
+      data: updatedProfile
     });
   } catch (error) {
     next(error);
   }
 };
-
-module.exports = exports;

@@ -10,6 +10,7 @@ const cmsRoutes = require('./routes/cms');
 const contentRoutes = require('./routes/content');
 const vocabularyRoutes = require('./routes/vocabulary');
 const generatorRoutes = require('./routes/generator');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -125,6 +126,7 @@ app.use('/api/cms', cmsRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/vocabulary', vocabularyRoutes);
 app.use('/api/generator', generatorRoutes);
+app.use('/api/cms/admin', adminRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

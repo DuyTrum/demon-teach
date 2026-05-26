@@ -23,8 +23,14 @@ const Header: React.FC = () => {
       <div className="header-left">
         <h1 className="header-title" onClick={() => navigate('/')}>Demon Teach Admin</h1>
         <nav className="header-nav">
+          <button onClick={() => navigate('/dashboard')} className="nav-link">Dashboard</button>
           <button onClick={() => navigate('/lessons')} className="nav-link">Lessons</button>
           <button onClick={() => navigate('/generator')} className="nav-link">AI Generator</button>
+          <button onClick={() => navigate('/users')} className="nav-link">Users</button>
+          <button onClick={() => navigate('/leaderboard')} className="nav-link">Leaderboard</button>
+          <button onClick={() => navigate('/notifications')} className="nav-link">Notifications</button>
+          <button onClick={() => navigate('/system')} className="nav-link">System</button>
+          <button onClick={() => navigate('/backup')} className="nav-link">Backup</button>
         </nav>
       </div>
 

@@ -85,12 +85,16 @@ class LeaderboardRepositoryImpl implements LeaderboardRepository {
               await _firestore.collection('users').doc(currentUserId).get();
           String displayName = 'Tôi';
           if (currentUserDoc.exists && currentUserDoc.data() != null) {
-            final email = currentUserDoc.data()!['email'] ?? '';
-            if (email.isNotEmpty) {
-              displayName = email.split('@').first;
-              if (displayName.length > 1) {
-                displayName =
-                    displayName[0].toUpperCase() + displayName.substring(1);
+            final data = currentUserDoc.data()!;
+            displayName = data['displayName'] ?? '';
+            if (displayName.isEmpty) {
+              final email = data['email'] ?? '';
+              if (email.isNotEmpty) {
+                displayName = email.split('@').first;
+                if (displayName.length > 1) {
+                  displayName =
+                      displayName[0].toUpperCase() + displayName.substring(1);
+                }
               }
             }
           }

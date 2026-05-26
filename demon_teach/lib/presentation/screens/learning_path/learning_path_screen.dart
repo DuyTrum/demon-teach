@@ -19,6 +19,7 @@ import 'package:demon_teach/presentation/widgets/common/error_message.dart';
 import 'package:demon_teach/presentation/screens/lesson/daily_lesson_screen.dart';
 import 'package:demon_teach/domain/entities/assessment.dart';
 import 'package:demon_teach/domain/entities/learning_goal.dart';
+import 'package:demon_teach/presentation/screens/learning_path/lesson_search_screen.dart';
 
 // ─── Dark Demon Theme Colors ───
 const _kBgGradientTop = Color(0xFF1A0A2E);
@@ -143,6 +144,15 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
         elevation: 0,
         iconTheme: const IconThemeData(color: _kTextLight),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LessonSearchScreen()),
+              );
+            },
+          ),
           if (progress != null) _buildHeartsIndicator(context, progress),
           const SizedBox(width: 12),
         ],

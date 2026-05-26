@@ -1,13 +1,9 @@
 const LessonService = require('../services/LessonService');
-const { syncDatabase } = require('../models');
 require('dotenv').config();
 
 const testLessonGeneration = async () => {
   try {
     console.log('✨ Starting AI Lesson Generation Magic...');
-    
-    // Sync DB
-    await syncDatabase(false);
 
     const topic = 'Restaurant & Food';
     const language = 'zh'; // Let's try Chinese!
@@ -29,7 +25,7 @@ const testLessonGeneration = async () => {
     console.log('\n--- Sample Quiz Question ---');
     console.log(JSON.stringify(lesson.content.quiz.questions[0].content, null, 2));
 
-    console.log('\n✨ Everything is saved in the database. Test completed!');
+    console.log('\n✨ Everything is saved in Firestore. Test completed!');
     process.exit(0);
   } catch (error) {
     console.error('❌ Generation failed:', error);

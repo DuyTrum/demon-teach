@@ -52,7 +52,11 @@ import 'package:demon_teach/domain/services/sync_manager.dart';
 import 'package:demon_teach/presentation/providers/sync_provider.dart';
 import 'package:demon_teach/data/repositories/leaderboard_repository_impl.dart';
 import 'package:demon_teach/presentation/providers/leaderboard_provider.dart';
+import 'package:demon_teach/data/repositories/bookmark_repository_impl.dart';
+import 'package:demon_teach/presentation/providers/bookmark_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'package:demon_teach/presentation/widgets/common/demon_background_particles.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -143,6 +147,7 @@ void main() async {
   );
   final syncManager = SyncManager(syncRepository);
   final leaderboardRepository = LeaderboardRepositoryImpl();
+  final bookmarkRepository = BookmarkRepositoryImpl(FirebaseFirestore.instance);
 
   runApp(
     ProviderScope(
@@ -202,6 +207,8 @@ void main() async {
         syncManagerProvider.overrideWithValue(syncManager),
         // Override LeaderboardRepository provider
         leaderboardRepositoryProvider.overrideWithValue(leaderboardRepository),
+        // Override BookmarkRepository provider
+        bookmarkRepositoryProvider.overrideWithValue(bookmarkRepository),
       ],
       child: const DemonTeachApp(),
     ),
@@ -258,33 +265,91 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.school,
-              size: 100,
-              color: AppTheme.primaryColor,
+      backgroundColor: AppTheme.demonBgGradientBot,
+      body: Stack(
+        children: [
+          // Dark Gradient Background
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.demonBgGradientTop,
+                  AppTheme.demonBgGradientMid,
+                  AppTheme.demonBgGradientBot,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
             ),
-            const SizedBox(height: AppTheme.spacingLg),
-            Text(
-              AppConstants.appName,
-              style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    color: AppTheme.primaryColor,
+          ),
+          // Background embers
+          const Positioned.fill(
+            child: DemonBackgroundParticles(),
+          ),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppTheme.demonGlowPurple.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppTheme.demonGlowPurple.withOpacity(0.5),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.demonGlowPurple.withOpacity(0.3),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                      )
+                    ],
                   ),
-            ),
-            const SizedBox(height: AppTheme.spacingSm),
-            Text(
-              'AI-Powered Language Learning',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textSecondaryColor,
+                  child: const Icon(
+                    Icons.local_fire_department,
+                    size: 80,
+                    color: Colors.white,
                   ),
+                ),
+                const SizedBox(height: AppTheme.spacingXl),
+                Text(
+                  'DEMON TEACH',
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 40,
+                        letterSpacing: 3.0,
+                        shadows: [
+                          Shadow(
+                            color: AppTheme.demonGlowPurple,
+                            blurRadius: 15,
+                          ),
+                          Shadow(
+                            color: Colors.redAccent,
+                            blurRadius: 25,
+                          ),
+                        ],
+                      ),
+                ),
+                const SizedBox(height: AppTheme.spacingSm),
+                Text(
+                  'AI-Powered Language Learning',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: AppTheme.demonTextMuted,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 1.1,
+                      ),
+                ),
+                const SizedBox(height: 50),
+                const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.demonGlowPurple),
+                ),
+              ],
             ),
-            const SizedBox(height: AppTheme.spacingXl),
-            const CircularProgressIndicator(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -102,6 +102,7 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
           if (reviewState.dueCount > 0)
             Container(
@@ -467,6 +468,23 @@ class _ReviewQueueScreenState extends ConsumerState<ReviewQueueScreen> {
             : null,
       ),
       child: ListTile(
+        onTap: () {
+          if (isDue) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ReviewSessionScreen(userId: item.userId),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Bài tập này chưa đến hạn ôn.'),
+                backgroundColor: Colors.orangeAccent,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        },
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: _buildReviewTypeIcon(item.type, glowColor),
         title: Text(

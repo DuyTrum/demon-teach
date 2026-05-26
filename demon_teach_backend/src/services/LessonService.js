@@ -75,7 +75,10 @@ class LessonService {
       - The items MUST be directly relevant to the specific topic "${topic}".
       - Do NOT output generic, repetitive introductory words (like "hello", "hi") unless the topic is specifically about greetings.
       - Ensure the items are unique and specific to this lesson's topic.
-      Return ONLY a JSON array of strings: ["item1", "item2", ...]`;
+      Return ONLY a JSON object in this format:
+      {
+        "words": ["item1", "item2", ...]
+      }`;
       const wordsRaw = await AiService._callAi(prompt);
       const wordsData = JSON.parse(wordsRaw);
       
@@ -170,14 +173,16 @@ class LessonService {
       try {
         const speakingPrompt = `Create 2 conversational speaking/reading sentences/phrases in ${language} for the topic "${topic}" at ${difficulty} level.
         For each phrase, provide its pronunciation (Pinyin for Chinese, Romanization for Korean, IPA/Pronunciation for English) and its Vietnamese translation.
-        Return ONLY a JSON array of objects:
-        [
-          {
-            "phrase": "...",
-            "pronunciation": "...",
-            "translation": "..."
-          }
-        ]`;
+        Return ONLY a JSON object in this format:
+        {
+          "phrases": [
+            {
+              "phrase": "...",
+              "pronunciation": "...",
+              "translation": "..."
+            }
+          ]
+        }`;
         console.log(`🎤 Generating speaking exercises for topic "${topic}"...`);
         const speakingRaw = await AiService._callAi(speakingPrompt);
         const speakingData = JSON.parse(speakingRaw);

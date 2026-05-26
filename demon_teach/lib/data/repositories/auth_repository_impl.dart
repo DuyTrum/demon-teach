@@ -263,4 +263,15 @@ class AuthRepositoryImpl implements AuthRepository {
       return Result.failure(AuthFailure(message: e.toString()));
     }
   }
+  @override
+  Future<Result<void>> forgotPassword(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+      return Result.success(null);
+    } on fb_auth.FirebaseAuthException catch (e) {
+      return Result.failure(AuthFailure(message: _mapFirebaseAuthException(e)));
+    } catch (e) {
+      return Result.failure(AuthFailure(message: e.toString()));
+    }
+  }
 }

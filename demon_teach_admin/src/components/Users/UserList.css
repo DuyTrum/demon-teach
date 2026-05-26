@@ -1,0 +1,267 @@
+.user-list-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.list-header {
+  margin-bottom: 24px;
+}
+
+.list-header h2 {
+  font-size: 2rem;
+  margin: 0 0 8px 0;
+  background: linear-gradient(135deg, #ffffff 0%, var(--neon-purple) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.list-header p {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.filters-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.filters-bar input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glow);
+  padding: 12px 16px;
+  border-radius: 8px;
+  color: var(--text-main);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.filters-bar input:focus {
+  outline: none;
+  border-color: var(--neon-purple);
+  box-shadow: 0 0 10px rgba(176, 66, 255, 0.3);
+}
+
+.btn-search {
+  background: linear-gradient(135deg, var(--neon-purple) 0%, #892cdc 100%);
+  color: #fff;
+  border: none;
+  padding: 0 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-search:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px rgba(176, 66, 255, 0.5);
+}
+
+.table-responsive {
+  overflow-x: auto;
+  margin-bottom: 24px;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.users-table th {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-glow);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.users-table td {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  vertical-align: middle;
+}
+
+.users-table tr:hover td {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.user-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--neon-purple) 0%, #6805b5 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  box-shadow: 0 0 10px rgba(176, 66, 255, 0.3);
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-details strong {
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+.user-email-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.user-uid {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: monospace;
+}
+
+.user-languages {
+  font-size: 0.9rem;
+}
+
+.user-languages strong {
+  color: var(--neon-purple);
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.role-badge.admin {
+  background: rgba(176, 66, 255, 0.15);
+  color: var(--neon-purple);
+  border: 1px solid rgba(176, 66, 255, 0.3);
+  box-shadow: 0 0 8px rgba(176, 66, 255, 0.2);
+}
+
+.role-badge.user {
+  background: rgba(0, 242, 254, 0.1);
+  color: #00f2fe;
+  border: 1px solid rgba(0, 242, 254, 0.2);
+}
+
+.user-dates {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-action {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.btn-role {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  border-color: var(--border-glow);
+}
+
+.btn-role:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--text-muted);
+}
+
+.btn-delete {
+  background: rgba(255, 59, 59, 0.1);
+  color: var(--blood-red);
+  border-color: rgba(255, 59, 59, 0.2);
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: var(--blood-red);
+  color: white;
+  box-shadow: 0 0 10px rgba(255, 59, 59, 0.4);
+}
+
+.btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.btn-pagination {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  border: 1px solid var(--border-glow);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-pagination:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--neon-purple);
+}
+
+.btn-pagination:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.page-info {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.loading, .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--neon-purple);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

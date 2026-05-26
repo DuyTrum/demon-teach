@@ -1,9 +1,10 @@
 const axios = require('axios');
-const { Vocabulary, Exercise } = require('../models');
+const { db } = require('../config/firebase');
 
 class VocabularyService {
   /**
    * Fetch word details for English using Free Dictionary API
+   * Saves result to Firestore instead of SQLite
    */
   async fetchEnglishWord(word) {
     try {
@@ -17,15 +18,22 @@ class VocabularyService {
         synonyms: m.synonyms || []
       }));
 
-      const vocab = await Vocabulary.create({
+      const vocabData = {
         word: data.word,
         language: 'en',
         phonetic: data.phonetic || '',
         meanings: meanings,
-        source: 'dictionary_api'
-      });
+        source: 'dictionary_api',
+        createdAt: new Date().toISOString()
+      };
 
-      return vocab;
+      // Save to Firestore
+      if (db) {
+        const docRef = await db.collection('vocabularies').add(vocabData);
+        vocabData.id = docRef.id;
+      }
+
+      return vocabData;
     } catch (error) {
       console.error(`Error fetching English word "${word}":`, error.message);
       throw error;
@@ -36,8 +44,6 @@ class VocabularyService {
    * Placeholder for Chinese/Korean fetching (could use AI or specific scrapers)
    */
   async fetchAsianWord(word, lang) {
-    // This is where we would call an AI service or a specialized scraper
-    // For now, it's a stub that the AI service will fill
     console.log(`Need to fetch ${lang} word: ${word}`);
   }
 }

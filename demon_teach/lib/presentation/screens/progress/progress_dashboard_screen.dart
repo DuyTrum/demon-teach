@@ -234,75 +234,81 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
               )
             ],
           ),
-          padding: const EdgeInsets.all(AppTheme.spacingXl),
+          padding: const EdgeInsets.all(AppTheme.spacingLg),
           child: Column(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Cấp độ ${progress.level}',
-                        style: const TextStyle(
-                          fontSize: 36,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          shadows: [
-                            Shadow(
-                              color: AppTheme.demonGlowPurple,
-                              blurRadius: 10,
-                            )
-                          ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Cấp độ ${progress.level}',
+                          style: const TextStyle(
+                            fontSize: 32,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(
+                                color: AppTheme.demonGlowPurple,
+                                blurRadius: 10,
+                              )
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: AppTheme.spacingXs),
-                      Text(
-                        '${progress.totalXP} XP • ${progress.souls} Linh Hồn',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: AppTheme.demonTextMuted,
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(height: AppTheme.spacingXs),
+                        Text(
+                          '${progress.totalXP} XP • ${progress.souls} Linh Hồn',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppTheme.demonTextMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 12),
                   Container(
-                    padding: const EdgeInsets.all(AppTheme.spacingLg),
+                    padding: const EdgeInsets.all(AppTheme.spacingMd),
                     decoration: BoxDecoration(
                       color: AppTheme.demonGlowPurple.withOpacity(0.2),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                           color: AppTheme.demonGlowPurple.withOpacity(0.5),
-                          blurRadius: 20,
-                          spreadRadius: 5,
+                          blurRadius: 15,
+                          spreadRadius: 3,
                         )
                       ],
                     ),
                     child: const Icon(
                       Icons.auto_awesome,
-                      size: 50,
+                      size: 36,
                       color: Colors.white,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: AppTheme.spacingXl),
+              const SizedBox(height: AppTheme.spacingLg),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Cấp độ tiếp theo',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                      const Expanded(
+                        child: Text(
+                          'Cấp độ tiếp theo',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         'Cần ${progress.xpToNextLevel} XP để lên cấp',
                         style: const TextStyle(
@@ -349,7 +355,7 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(AppTheme.spacingMd),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.orangeAccent.withOpacity(0.25),
               shape: BoxShape.circle,
@@ -357,7 +363,7 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
                   ? [
                       BoxShadow(
                         color: Colors.orangeAccent.withOpacity(0.4),
-                        blurRadius: 20,
+                        blurRadius: 15,
                         spreadRadius: 2,
                       )
                     ]
@@ -365,23 +371,48 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
             ),
             child: const Icon(
               Icons.local_fire_department,
-              size: 40,
+              size: 32,
               color: Colors.orangeAccent,
             ),
           ),
-          const SizedBox(width: AppTheme.spacingMd),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Chuỗi hiện tại',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.demonTextMuted,
-                  ),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    const Text(
+                      'Chuỗi hiện tại',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.demonTextMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (progress.currentStreak > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.redAccent.withOpacity(0.6)),
+                        ),
+                        child: const Text(
+                          '🔥 RỰC CHÁY',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: AppTheme.spacingXs),
+                const SizedBox(height: 4),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
@@ -389,7 +420,7 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
                     Text(
                       '${progress.currentStreak}',
                       style: const TextStyle(
-                        fontSize: 32,
+                        fontSize: 28,
                         color: Colors.orangeAccent,
                         fontWeight: FontWeight.bold,
                         shadows: [Shadow(color: Colors.orangeAccent, blurRadius: 10)],
@@ -399,18 +430,18 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
                     const Text(
                       'ngày',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         color: Colors.white70,
                       ),
                     ),
                   ],
                 ),
                 if (progress.longestStreak > progress.currentStreak) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     'Kỷ lục: ${progress.longestStreak} ngày',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: AppTheme.demonTextMuted,
                     ),
                   ),
@@ -418,29 +449,6 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
               ],
             ),
           ),
-          if (progress.currentStreak > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingMd,
-                vertical: 8,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.redAccent.withOpacity(0.8)),
-                boxShadow: [
-                  BoxShadow(color: Colors.redAccent.withOpacity(0.4), blurRadius: 10)
-                ],
-              ),
-              child: const Text(
-                '🔥 RỰC CHÁY',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.1,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -663,6 +671,8 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
           const SizedBox(height: AppTheme.spacingLg),
           if (achievementState.isLoading)
             const Center(child: CircularProgressIndicator(color: AppTheme.demonGlowPurple))
+          else if (achievementState.error != null)
+            Text('Lỗi: ${achievementState.error}', style: const TextStyle(color: Colors.redAccent))
           else if (achievementState.achievements.isEmpty)
             Text('Chưa có thành tựu khả dụng.', style: TextStyle(color: AppTheme.demonTextMuted))
           else
@@ -764,145 +774,151 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFF1744).withOpacity(0.15),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFFFF1744).withOpacity(0.3),
-                      blurRadius: 15,
+                      blurRadius: 10,
                       spreadRadius: 1,
                     )
                   ],
                 ),
                 child: const Icon(
                   Icons.favorite,
-                  size: 32,
+                  size: 28,
                   color: Color(0xFFFF1744),
                 ),
               ),
-              const SizedBox(width: AppTheme.spacingMd),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Tim Ma Pháp',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Tim Ma Pháp',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          isFull ? '🔥 FULL' : countdownStr,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isFull ? Colors.greenAccent : const Color(0xFFFF1744),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Row(
-                      children: List.generate(AppConstants.maxHearts, (index) {
-                        final isFilled = index < currentProgress.hearts;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 4),
-                          child: Icon(
-                            Icons.favorite,
-                            color: isFilled ? const Color(0xFFFF1744) : Colors.white24,
-                            size: 20,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: List.generate(AppConstants.maxHearts, (index) {
+                            final isFilled = index < currentProgress.hearts;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 3),
+                              child: Icon(
+                                Icons.favorite,
+                                color: isFilled ? const Color(0xFFFF1744) : Colors.white24,
+                                size: 16,
+                              ),
+                            );
+                          }),
+                        ),
+                        if (!isFull)
+                          Text(
+                            'Hồi phục tiếp theo',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.demonTextMuted,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        );
-                      }),
+                      ],
                     ),
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    isFull ? 'Đầy Năng Lượng' : 'Hồi phục tiếp theo',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.demonTextMuted,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isFull ? '🔥 FULL' : countdownStr,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: isFull ? Colors.greenAccent : const Color(0xFFFF1744),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
           const SizedBox(height: AppTheme.spacingLg),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Text(
-                  isFull
-                      ? 'Năng lượng đang đạt giới hạn tối đa.'
-                      : 'Hồi phục 1 Tim bằng 50 Linh Hồn.\n(Ngươi đang có 👻 ${currentProgress.souls} Linh Hồn)',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.demonTextLight,
-                  ),
+              Text(
+                isFull
+                    ? 'Năng lượng đang đạt giới hạn tối đa.'
+                    : 'Hồi phục 1 Tim bằng 50 Linh Hồn. (Ngươi đang có 👻 ${currentProgress.souls} Linh Hồn)',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.demonTextLight,
                 ),
               ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: (isFull || !hasEnoughSouls || isUpdating)
-                    ? null
-                    : () async {
-                        final success = await ref
-                            .read(progressProvider.notifier)
-                            .refillHeartWithSouls(
-                              userId: currentProgress.userId,
-                              targetLanguage: currentProgress.targetLanguage,
-                            );
-                        if (success && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Hồi phục Tim thành công! 💖 Ma lực đã gia tăng.',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: (isFull || !hasEnoughSouls || isUpdating)
+                      ? null
+                      : () async {
+                          final success = await ref
+                              .read(progressProvider.notifier)
+                              .refillHeartWithSouls(
+                                userId: currentProgress.userId,
+                                targetLanguage: currentProgress.targetLanguage,
+                              );
+                          if (success && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Hồi phục Tim thành công! 💖 Ma lực đã gia tăng.',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                backgroundColor: Color(0xFF43A047),
                               ),
-                              backgroundColor: Color(0xFF43A047),
-                            ),
-                          );
-                        } else if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Hồi phục thất bại!'),
-                              backgroundColor: Colors.redAccent,
-                            ),
-                          );
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF1744),
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.white12,
-                  disabledForegroundColor: Colors.white24,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                            );
+                          } else if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Hồi phục thất bại!'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF1744),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.white12,
+                    disabledForegroundColor: Colors.white24,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
+                  child: isFull
+                      ? const Text('Đã Đầy', style: TextStyle(fontWeight: FontWeight.bold))
+                      : isUpdating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Text('Đổi 50 Linh Hồn', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                child: isFull
-                    ? const Text('Đã Đầy', style: TextStyle(fontWeight: FontWeight.bold))
-                    : isUpdating
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text('Đổi 100 XP', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),

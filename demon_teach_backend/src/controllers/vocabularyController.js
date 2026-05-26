@@ -1,4 +1,4 @@
-const { Vocabulary, Exercise } = require('../models');
+const { db } = require('../config/firebase');
 const VocabularyService = require('../services/VocabularyService');
 const AiService = require('../services/AiService');
 
@@ -36,13 +36,19 @@ const expandWord = async (req, res, next) => {
 const getVocabList = async (req, res, next) => {
   try {
     const { language, level } = req.query;
-    const where = {};
-    if (language) where.language = language;
-    if (level) where.level = level;
 
-    const list = await Vocabulary.findAll({
-      where,
-      include: [{ model: Exercise, as: 'exercises' }]
+    if (!db) throw new Error('Firestore is not initialized');
+
+    let query = db.collection('vocabularies');
+
+    if (language) query = query.where('language', '==', language);
+    if (level) query = query.where('level', '==', level);
+
+    const snapshot = await query.get();
+
+    const list = [];
+    snapshot.forEach(doc => {
+      list.push({ id: doc.id, ...doc.data() });
     });
 
     res.json({ success: true, data: list });

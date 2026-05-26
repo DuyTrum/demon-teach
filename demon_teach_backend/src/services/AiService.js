@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { Exercise, Vocabulary } = require('../models');
+const { db } = require('../config/firebase');
 const { EdgeTTS } = require('node-edge-tts');
 const path = require('path');
 const fs = require('fs');
@@ -60,37 +60,37 @@ class AiService {
     }
 
     const prompt = `
-      Create exactly ${count} different exercises for the ${vocabulary.language} word "${vocabulary.word}".
+      You are an expert language teacher. Create exactly ${count} different exercises for the ${vocabulary.language} word "${vocabulary.word}".
       Word meaning: ${JSON.stringify(vocabulary.meanings[0])}
       
       ${goalPrompt}
-      CRITICAL RULES:
-      - You MUST create exactly 1 exercise of type "multipleChoice" and 1 exercise of type "fillInBlank".
-      - For "multipleChoice": provide "options" (array of 4 strings) and "correctAnswer" (must match one option exactly).
-      - For "fillInBlank": provide "questionText" as a sentence with a blank (use "______" for the blank), "correctAnswer" as the missing word/phrase, and NO "options" field.
-      - All questionTexts and explanations should be in Vietnamese.
-      - All correctAnswers and options should be in the target language (${vocabulary.language}).
       
-      Return ONLY a JSON array of objects:
-      [
-        {
-          "type": "multipleChoice",
-          "content": {
-            "questionText": "...",
-            "options": ["...", "...", "...", "..."],
-            "correctAnswer": "...",
-            "explanation": "..."
+      You must respond with a JSON object containing an "exercises" array with exactly 2 exercises:
+      1. The first exercise must be a multiple choice exercise ("multipleChoice").
+      2. The second exercise must be a fill-in-the-blank exercise ("fillInBlank").
+      
+      The output JSON object MUST match the following structure exactly:
+      {
+        "exercises": [
+          {
+            "type": "multipleChoice",
+            "content": {
+              "questionText": "Question text in Vietnamese",
+              "choices": ["Option 1 in target language", "Option 2 in target language", "Option 3 in target language", "Option 4 in target language"],
+              "correctAnswer": "The correct option (must match one of the choices exactly)",
+              "explanation": "Explanation in Vietnamese"
+            }
+          },
+          {
+            "type": "fillInBlank",
+            "content": {
+              "questionText": "Sentence in target language with a blank represented by six underscores '______' (in Vietnamese context)",
+              "correctAnswer": "The missing word (must be ${vocabulary.word})",
+              "explanation": "Explanation in Vietnamese"
+            }
           }
-        },
-        {
-          "type": "fillInBlank",
-          "content": {
-            "questionText": "Điền từ thích hợp: '... ______ ...'",
-            "correctAnswer": "...",
-            "explanation": "..."
-          }
-        }
-      ]
+        ]
+      }
     `;
 
     try {
@@ -100,58 +100,59 @@ class AiService {
       
       if (!Array.isArray(exercisesData)) return [];
 
-      // Ensure the vocabulary exists in the SQLite database first to satisfy the foreign key constraint
-      try {
-        await Vocabulary.findOrCreate({
-          where: { word: vocabulary.word, language: vocabulary.language },
-          defaults: {
-            id: vocabulary.id,
-            word: vocabulary.word,
-            language: vocabulary.language,
-            level: vocabulary.level || 'basic',
-            phonetic: vocabulary.phonetic || '',
-            details: vocabulary.details || {},
-            meanings: vocabulary.meanings || [],
-            source: vocabulary.source || 'ai_discovery'
-          }
-        });
-      } catch (dbErr) {
-        console.error('Error ensuring vocabulary in SQLite local DB:', dbErr.message);
-        // If findOrCreate failed due to UUID validation of vocabulary.id (e.g. vocab_xxx is not a valid UUID),
-        // we generate a valid UUID for it and try inserting again.
-        if (dbErr.message.toLowerCase().includes('uuid') || dbErr.message.toLowerCase().includes('validation')) {
-          try {
-            const crypto = require('crypto');
-            const validUuid = crypto.randomUUID();
-            vocabulary.id = validUuid; // update in memory so the exercise will use the valid UUID
-            
-            await Vocabulary.findOrCreate({
-              where: { word: vocabulary.word, language: vocabulary.language },
-              defaults: {
-                id: validUuid,
-                word: vocabulary.word,
-                language: vocabulary.language,
-                level: vocabulary.level || 'basic',
-                phonetic: vocabulary.phonetic || '',
-                details: vocabulary.details || {},
-                meanings: vocabulary.meanings || [],
-                source: vocabulary.source || 'ai_discovery'
-              }
+      // Ensure the vocabulary exists in Firestore
+      if (db) {
+        try {
+          const vocabQuery = await db.collection('vocabularies')
+            .where('word', '==', vocabulary.word)
+            .where('language', '==', vocabulary.language)
+            .limit(1)
+            .get();
+
+          if (vocabQuery.empty) {
+            const vocabRef = await db.collection('vocabularies').add({
+              word: vocabulary.word,
+              language: vocabulary.language,
+              level: vocabulary.level || 'basic',
+              phonetic: vocabulary.phonetic || '',
+              details: vocabulary.details || {},
+              meanings: vocabulary.meanings || [],
+              source: vocabulary.source || 'ai_discovery',
+              createdAt: new Date().toISOString()
             });
-          } catch (retryErr) {
-            console.error('Retry failed ensuring vocabulary in SQLite local DB:', retryErr.message);
+            vocabulary.id = vocabRef.id;
+          } else {
+            vocabulary.id = vocabQuery.docs[0].id;
           }
+        } catch (dbErr) {
+          console.error('Error ensuring vocabulary in Firestore:', dbErr.message);
         }
       }
 
       const createdExercises = await Promise.all(exercisesData.map(async (ex) => {
-        return await Exercise.create({
+        // Fallback mapping: if AI outputs "choices", convert it to "options"
+        const content = { ...ex.content };
+        if (content.choices && !content.options) {
+          content.options = content.choices;
+          delete content.choices;
+        }
+
+        const exerciseData = {
           type: ex.type,
           targetLanguage: vocabulary.language,
-          content: ex.content,
-          vocabularyId: vocabulary.id,
-          source: 'ai_generated'
-        });
+          content: content,
+          vocabularyId: vocabulary.id || null,
+          source: 'ai_generated',
+          createdAt: new Date().toISOString()
+        };
+
+        // Save to Firestore
+        if (db) {
+          const docRef = await db.collection('exercises').add(exerciseData);
+          exerciseData.id = docRef.id;
+        }
+
+        return exerciseData;
       }));
 
       return createdExercises;
@@ -380,18 +381,25 @@ Trả về CHỈ JSON (không thêm text):
    * Internal helper to call Groq
    */
   async _callAi(prompt) {
-    const response = await axios.post(this.apiUrl, {
-      model: this.model,
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
-    }, {
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    try {
+      const response = await axios.post(this.apiUrl, {
+        model: this.model,
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-    return response.data.choices[0].message.content;
+      return response.data.choices[0].message.content;
+    } catch (error) {
+      if (error.response) {
+        console.error('❌ Groq API Call Failed:', JSON.stringify(error.response.data));
+      }
+      throw error;
+    }
   }
 }
 

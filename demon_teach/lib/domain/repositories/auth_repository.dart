@@ -30,4 +30,7 @@ abstract class AuthRepository {
 
   /// Update user display name
   Future<Result<User>> updateDisplayName(String displayName);
+
+  /// Send password reset email
+  Future<Result<void>> forgotPassword(String email);
 }

@@ -4,6 +4,7 @@ import 'package:demon_teach/domain/entities/entity.dart';
 class User extends Entity {
   final String id;
   final String email;
+  final String? displayName;
   final String nativeLanguage;
   final List<String> targetLanguages;
   final DateTime createdAt;
@@ -12,6 +13,7 @@ class User extends Entity {
   const User({
     required this.id,
     required this.email,
+    this.displayName,
     required this.nativeLanguage,
     required this.targetLanguages,
     required this.createdAt,
@@ -21,6 +23,7 @@ class User extends Entity {
   User copyWith({
     String? id,
     String? email,
+    String? displayName,
     String? nativeLanguage,
     List<String>? targetLanguages,
     DateTime? createdAt,
@@ -29,6 +32,7 @@ class User extends Entity {
     return User(
       id: id ?? this.id,
       email: email ?? this.email,
+      displayName: displayName ?? this.displayName,
       nativeLanguage: nativeLanguage ?? this.nativeLanguage,
       targetLanguages: targetLanguages ?? this.targetLanguages,
       createdAt: createdAt ?? this.createdAt,
@@ -40,6 +44,7 @@ class User extends Entity {
   List<Object?> get props => [
         id,
         email,
+        displayName,
         nativeLanguage,
         targetLanguages,
         createdAt,
@@ -50,6 +55,7 @@ class User extends Entity {
     return User(
       id: json['id']?.toString() ?? '',
       email: json['email'] ?? '',
+      displayName: json['displayName'],
       nativeLanguage: json['nativeLanguage'] ?? '',
       targetLanguages: (json['targetLanguages'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -68,6 +74,7 @@ class User extends Entity {
     return {
       'id': id,
       'email': email,
+      'displayName': displayName,
       'nativeLanguage': nativeLanguage,
       'targetLanguages': targetLanguages,
       'createdAt': createdAt.toIso8601String(),

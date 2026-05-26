@@ -24,12 +24,19 @@ class UpdateProgress {
         // Calculate XP
         final xp = _tracker.calculateXP(score);
 
+        // Calculate levels and souls
+        int oldLevel = (progress.totalXP / 100).floor() + 1;
+        int newLevel = ((progress.totalXP + xp) / 100).floor() + 1;
+        int levelsGained = newLevel > oldLevel ? newLevel - oldLevel : 0;
+        int soulsGained = levelsGained * 50;
+
         // Update streak
         final updatedProgress = _tracker.updateStreak(progress, DateTime.now());
 
         // Add XP and increment lessons completed
         final finalProgress = updatedProgress.copyWith(
           totalXP: updatedProgress.totalXP + xp,
+          souls: updatedProgress.souls + soulsGained,
           lessonsCompleted: updatedProgress.lessonsCompleted + 1,
           updatedAt: DateTime.now(),
         );

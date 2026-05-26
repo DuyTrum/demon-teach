@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:demon_teach/presentation/screens/auth/register_screen.dart';
+import 'package:demon_teach/presentation/screens/auth/forgot_password_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/theme/app_theme.dart';
@@ -214,11 +215,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                               const SizedBox(height: 12),
 
-                              // Forgot Password
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => ForgotPasswordScreen(
+                                          initialEmail: _emailController.text,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                   child: const Text(
                                     'Quên mật khẩu?',
                                     style: TextStyle(color: AppTheme.demonGlowPurple),

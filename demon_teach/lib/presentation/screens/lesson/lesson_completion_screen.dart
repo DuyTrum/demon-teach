@@ -11,6 +11,7 @@ import 'package:demon_teach/presentation/screens/learning_path/learning_path_scr
 import 'package:demon_teach/presentation/providers/learning_path_provider.dart';
 import 'package:demon_teach/presentation/providers/progress_provider.dart';
 import 'package:demon_teach/presentation/providers/achievement_provider.dart';
+import 'package:demon_teach/core/services/audio_feedback_service.dart';
 import 'package:demon_teach/presentation/widgets/common/demon_background_particles.dart';
 
 class LessonCompletionScreen extends ConsumerStatefulWidget {
@@ -70,6 +71,9 @@ class _LessonCompletionScreenState extends ConsumerState<LessonCompletionScreen>
     if (user == null || languageState.preference == null) return;
 
     final targetLanguage = languageState.preference!.targetLanguage;
+
+    // Play meme sound for completion
+    ref.read(audioFeedbackServiceProvider).playLessonCompleteSfx();
 
     // 1. Mark lesson as complete and update current index of learning path on local DB
     await ref.read(lessonProvider.notifier).completeCurrentLesson(

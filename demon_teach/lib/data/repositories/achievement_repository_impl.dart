@@ -42,6 +42,15 @@ class AchievementRepositoryImpl implements AchievementRepository {
           .map((json) => Achievement.fromJson(json as Map<String, dynamic>))
           .toList();
 
+      if (achievements.isEmpty) {
+        final newAchievements = _engine.getAchievementDefinitions(
+          userId: userId,
+          targetLanguage: targetLanguage,
+        );
+        await saveAchievements(newAchievements);
+        return Result.success(newAchievements);
+      }
+
       return Result.success(achievements);
     } catch (e) {
       return Result.failure(

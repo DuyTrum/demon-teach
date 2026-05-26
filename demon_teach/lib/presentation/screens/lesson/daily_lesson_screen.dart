@@ -21,9 +21,11 @@ import 'package:demon_teach/presentation/widgets/flashcard_widget.dart';
 import 'dart:ui';
 import 'package:demon_teach/domain/entities/progress.dart';
 import 'package:demon_teach/presentation/providers/progress_provider.dart';
+import 'package:demon_teach/presentation/providers/bookmark_provider.dart';
 
 class DailyLessonScreen extends ConsumerStatefulWidget {
-  const DailyLessonScreen({super.key});
+  final String? lessonId;
+  const DailyLessonScreen({super.key, this.lessonId});
 
   @override
   ConsumerState<DailyLessonScreen> createState() => _DailyLessonScreenState();
@@ -266,6 +268,13 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
 
   void _loadLesson() {
     final user = ref.read(authProvider).user;
+    if (user != null) {
+      ref.read(bookmarkProvider.notifier).loadBookmarks(user.id);
+    }
+    if (widget.lessonId != null) {
+      ref.read(lessonProvider.notifier).loadLessonById(widget.lessonId!);
+      return;
+    }
     final languageState = ref.read(languageProvider);
     if (user != null && languageState.preference != null) {
       ref.read(lessonProvider.notifier).loadNextLesson(

@@ -7,6 +7,9 @@ import 'package:demon_teach/presentation/providers/language_provider.dart';
 import 'package:demon_teach/presentation/providers/progress_provider.dart';
 import 'package:demon_teach/presentation/screens/onboarding/language_selection_screen.dart';
 import 'package:demon_teach/presentation/widgets/common/demon_background_particles.dart';
+import 'package:demon_teach/presentation/screens/profile/bookmark_list_screen.dart';
+import 'package:demon_teach/core/di/injection_container.dart';
+import 'package:demon_teach/core/services/notification_service.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -120,7 +123,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   const SizedBox(height: AppTheme.spacingLg),
                   Text(
-                    user?.email ?? 'Đệ tử Ác Quỷ',
+                    user?.displayName != null && user!.displayName!.isNotEmpty 
+                        ? user.displayName! 
+                        : (user?.email ?? 'Đệ tử Ác Quỷ'),
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -381,17 +386,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Divider(height: 1, color: Colors.white.withOpacity(0.1)),
               _buildSettingTile(
                 context,
+                icon: Icons.bookmark_rounded,
+                color: AppTheme.demonGlowPurple,
+                title: 'Từ vựng yêu thích',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const BookmarkListScreen(),
+                    ),
+                  );
+                },
+              ),
+              Divider(height: 1, color: Colors.white.withOpacity(0.1)),
+              _buildSettingTile(
+                context,
                 icon: Icons.notifications,
                 color: Colors.orangeAccent,
                 title: 'Cài đặt thông báo',
-                onTap: () {
-                  _showDemonDialog(
-                    context,
-                    title: 'Thông báo',
-                    content:
-                        'Lời thì thầm của ác quỷ đang được tinh chỉnh. Hãy quay lại sau!',
-                  );
-                },
+                onTap: () => _showNotificationSettingsSheet(context),
               ),
               Divider(height: 1, color: Colors.white.withOpacity(0.1)),
               _buildSettingTile(
@@ -517,9 +529,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Get current display name from Firestore or fallback to email username
     String currentDisplayName = '';
     if (user != null) {
-      final email = user.email;
-      if (email.isNotEmpty) {
-        currentDisplayName = email.split('@').first;
+      if (user.displayName != null && user.displayName!.isNotEmpty) {
+        currentDisplayName = user.displayName!;
+      } else {
+        final email = user.email;
+        if (email.isNotEmpty) {
+          currentDisplayName = email.split('@').first;
+        }
       }
     }
     controller.text = currentDisplayName;
@@ -634,6 +650,156 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showNotificationSettingsSheet(BuildContext context) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    bool enabled = prefs.getBool('study_reminder_enabled') ?? true;
+    int hour = prefs.getInt('study_reminder_hour') ?? 20;
+    int minute = prefs.getInt('study_reminder_minute') ?? 0;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1235).withOpacity(0.95),
+                    border: Border(
+                      top: BorderSide(
+                        color: AppTheme.demonGlowPurple.withOpacity(0.4),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        '🔮 LỜI THÌ THẦM NHẮC NHỞ',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Nhắc nhở học hằng ngày',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                          ),
+                          Switch(
+                            value: enabled,
+                            activeColor: AppTheme.demonGlowPurple,
+                            onChanged: (val) async {
+                              await prefs.setBool('study_reminder_enabled', val);
+                              setModalState(() {
+                                enabled = val;
+                              });
+                              if (val) {
+                                await NotificationService.scheduleDailyReminder(
+                                  id: 999,
+                                  title: 'Thì thầm Ác Ma 😈',
+                                  body: 'Đã đến giờ hiến tế... À không, giờ học từ vựng rồi! Vào ôn tập ngay.',
+                                  hour: hour,
+                                  minute: minute,
+                                );
+                              } else {
+                                await NotificationService.cancelNotification(999);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      if (enabled) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Thời gian nhắc nhở',
+                              style: TextStyle(color: Colors.white, fontSize: 16),
+                            ),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                backgroundColor: AppTheme.demonGlowPurple.withOpacity(0.15),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(color: AppTheme.demonGlowPurple.withOpacity(0.3)),
+                                ),
+                              ),
+                              onPressed: () async {
+                                final time = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay(hour: hour, minute: minute),
+                                );
+                                if (time != null) {
+                                  await prefs.setInt('study_reminder_hour', time.hour);
+                                  await prefs.setInt('study_reminder_minute', time.minute);
+                                  setModalState(() {
+                                    hour = time.hour;
+                                    minute = time.minute;
+                                  });
+                                  await NotificationService.scheduleDailyReminder(
+                                    id: 999,
+                                    title: 'Thì thầm Ác Ma 😈',
+                                    body: 'Đã đến giờ hiến tế... À không, giờ học từ vựng rồi! Vào ôn tập ngay.',
+                                    hour: time.hour,
+                                    minute: time.minute,
+                                  );
+                                }
+                              },
+                              child: Text(
+                                '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}',
+                                style: const TextStyle(
+                                  color: AppTheme.demonGlowPurple,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.demonGlowPurple,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text(
+                            'Hoàn tất',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

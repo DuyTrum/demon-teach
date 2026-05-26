@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/theme/app_theme.dart';
 import 'package:demon_teach/domain/entities/flashcard.dart';
 import 'package:demon_teach/presentation/providers/flashcard_provider.dart';
+import 'package:demon_teach/presentation/providers/auth_provider.dart';
+import 'package:demon_teach/presentation/providers/bookmark_provider.dart';
 import 'package:demon_teach/presentation/widgets/common/loading_indicator.dart';
 import 'package:demon_teach/presentation/widgets/common/error_message.dart';
 import 'package:demon_teach/presentation/widgets/common/demon_background_particles.dart';
@@ -40,9 +42,13 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
       CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
     );
 
-    // Load flashcards
+    // Load flashcards and bookmarks
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(flashcardProvider.notifier).loadFlashcards(widget.lessonId);
+      final user = ref.read(authProvider).user;
+      if (user != null) {
+        ref.read(bookmarkProvider.notifier).loadBookmarks(user.id);
+      }
     });
   }
 
@@ -302,11 +308,13 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
         borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Padding(
-            padding: const EdgeInsets.all(AppTheme.spacingLg),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppTheme.spacingLg),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                 Text(
                   flashcard.frontText,
                   style: const TextStyle(
@@ -381,10 +389,49 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
               ],
             ),
           ),
-        ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Consumer(
+              builder: (context, ref, _) {
+                final user = ref.watch(authProvider).user;
+                final bookmarkState = ref.watch(bookmarkProvider);
+                final isFav = bookmarkState.bookmarkedIds.contains(flashcard.id);
+                return IconButton(
+                  icon: Icon(
+                    isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                    color: isFav ? AppTheme.demonGlowPurple : AppTheme.demonTextMuted,
+                    size: 28,
+                  ),
+                  onPressed: () async {
+                    if (user != null) {
+                      final success = await ref
+                          .read(bookmarkProvider.notifier)
+                          .toggleBookmark(user.id, flashcard);
+                      if (success && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isFav ? 'Đã bỏ lưu từ vựng!' : 'Đã lưu từ vựng yêu thích! 🌟',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            duration: const Duration(seconds: 1),
+                            backgroundColor: isFav ? Colors.redAccent : AppTheme.demonGlowPurple,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildCardBack(BuildContext context, Flashcard flashcard) {
     return Container(
@@ -413,11 +460,13 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
         borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Padding(
-            padding: const EdgeInsets.all(AppTheme.spacingLg),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppTheme.spacingLg),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                 Text(
                   flashcard.backText,
                   style: const TextStyle(
@@ -486,10 +535,49 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
               ],
             ),
           ),
-        ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Consumer(
+              builder: (context, ref, _) {
+                final user = ref.watch(authProvider).user;
+                final bookmarkState = ref.watch(bookmarkProvider);
+                final isFav = bookmarkState.bookmarkedIds.contains(flashcard.id);
+                return IconButton(
+                  icon: Icon(
+                    isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                    color: isFav ? AppTheme.demonGlowPurple : AppTheme.demonTextMuted,
+                    size: 28,
+                  ),
+                  onPressed: () async {
+                    if (user != null) {
+                      final success = await ref
+                          .read(bookmarkProvider.notifier)
+                          .toggleBookmark(user.id, flashcard);
+                      if (success && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isFav ? 'Đã bỏ lưu từ vựng!' : 'Đã lưu từ vựng yêu thích! 🌟',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            duration: const Duration(seconds: 1),
+                            backgroundColor: isFav ? Colors.redAccent : AppTheme.demonGlowPurple,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildNavigationButtons(FlashcardState state) {
     return Padding(

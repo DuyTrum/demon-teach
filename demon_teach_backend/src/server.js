@@ -1,6 +1,4 @@
 const app = require('./app');
-const { testConnection, sequelize } = require('./config/database');
-const { syncDatabase } = require('./models');
 
 const PORT = process.env.PORT || 3000;
 
@@ -9,13 +7,7 @@ const startServer = async () => {
   try {
     console.log('🚀 Starting Demon Teach Backend API...');
     console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-
-    // Test database connection
-    await testConnection();
-
-    // Sync database (create tables if they don't exist)
-    // Set force: true to drop and recreate tables (WARNING: data loss)
-    await syncDatabase(false);
+    console.log('🔥 Using Firebase Firestore as the sole database.');
 
     // Start listening
     app.listen(PORT, () => {
@@ -46,13 +38,11 @@ const startServer = async () => {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('\n🛑 SIGTERM received. Shutting down gracefully...');
-  await sequelize.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('\n🛑 SIGINT received. Shutting down gracefully...');
-  await sequelize.close();
   process.exit(0);
 });
 

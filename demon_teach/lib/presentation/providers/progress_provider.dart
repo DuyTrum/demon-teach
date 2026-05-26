@@ -5,6 +5,7 @@ import 'package:demon_teach/domain/repositories/progress_repository.dart';
 import 'package:demon_teach/domain/usecases/progress/get_progress.dart';
 import 'package:demon_teach/domain/usecases/progress/update_progress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:demon_teach/core/services/audio_feedback_service.dart';
 
 // Repository provider
 final progressRepositoryProvider = Provider<ProgressRepository>((ref) {
@@ -50,18 +51,19 @@ class ProgressState {
   }
 }
 
-// Progress notifier
 class ProgressNotifier extends StateNotifier<ProgressState> {
   final GetProgress _getProgress;
   final UpdateProgress _updateProgress;
   final ProgressRepository _repository;
+  final AudioFeedbackService? _audioService;
   Timer? _regenTimer;
 
   ProgressNotifier(
     this._getProgress,
     this._updateProgress,
-    this._repository,
-  ) : super(const ProgressState()) {
+    this._repository, [
+    this._audioService,
+  ]) : super(const ProgressState()) {
     // Start periodic heart check timer every 10 seconds
     _regenTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _checkLocalHeartRegen();
@@ -161,6 +163,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     result.when(
       success: (updatedProgress) {
         state = state.copyWith(progress: updatedProgress);
+        _audioService?.playLoseHeartSfx();
       },
       failure: (failure) {
         state = state.copyWith(error: failure.message);
@@ -211,5 +214,6 @@ final progressProvider =
     ref.watch(getProgressProvider),
     ref.watch(updateProgressProvider),
     ref.watch(progressRepositoryProvider),
+    ref.watch(audioFeedbackServiceProvider),
   );
 });

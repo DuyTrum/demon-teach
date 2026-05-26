@@ -1,64 +1,56 @@
-const { User, Lesson, LessonVersion, Vocabulary, Exercise, syncDatabase } = require('../models');
-const { testConnection } = require('../config/database');
+const { db, auth } = require('../config/firebase');
 require('dotenv').config();
 
 const seedDatabase = async () => {
   try {
-    console.log('🌱 Starting database seeding & cleanup...');
+    console.log('🌱 Starting Firebase seeding...');
 
-    // Test connection
-    await testConnection();
+    if (!db || !auth) {
+      console.error('❌ Firebase is not initialized. Check your service account file.');
+      process.exit(1);
+    }
 
-    // Sync database (create tables if not exists)
-    await syncDatabase(false);
-
-    // Wipe all previous lesson-related data to ensure clean, AI-only generation
-    console.log('🧹 Wiping all old lesson, lesson version, vocabulary, and exercise records...');
-    await LessonVersion.destroy({ where: {} });
-    await Lesson.destroy({ where: {} });
-    await Vocabulary.destroy({ where: {} });
-    await Exercise.destroy({ where: {} });
-
-    // Create admin user
-    console.log('👤 Creating admin user...');
-    const admin = await User.findOrCreate({
-      where: { email: 'admin@demonteach.com' },
-      defaults: {
+    // Create admin user in Firebase Auth
+    console.log('👤 Creating admin user in Firebase Auth...');
+    let adminUid;
+    try {
+      const adminRecord = await auth.createUser({
         email: 'admin@demonteach.com',
         password: 'admin123',
-        role: 'admin'
+        emailVerified: true
+      });
+      adminUid = adminRecord.uid;
+      console.log('✅ Admin user created in Firebase Auth.');
+    } catch (e) {
+      if (e.code === 'auth/email-already-exists') {
+        const existingAdmin = await auth.getUserByEmail('admin@demonteach.com');
+        adminUid = existingAdmin.uid;
+        console.log('ℹ️  Admin user already exists in Firebase Auth.');
+      } else {
+        throw e;
       }
-    });
-
-    if (admin[1]) {
-      console.log('✅ Admin user created: admin@demonteach.com / admin123');
-    } else {
-      console.log('ℹ️  Admin user already exists');
     }
 
-    // Create regular user
-    console.log('👤 Creating regular user...');
-    const user = await User.findOrCreate({
-      where: { email: 'user@demonteach.com' },
-      defaults: {
-        email: 'user@demonteach.com',
-        password: 'user123',
-        role: 'user'
-      }
-    });
+    // Set admin custom claims
+    await auth.setCustomUserClaims(adminUid, { role: 'admin' });
+    console.log('✅ Admin custom claims set.');
 
-    if (user[1]) {
-      console.log('✅ Regular user created: user@demonteach.com / user123');
-    } else {
-      console.log('ℹ️  Regular user already exists');
-    }
+    // Create admin profile in Firestore
+    await db.collection('users').doc(adminUid).set({
+      email: 'admin@demonteach.com',
+      role: 'admin',
+      nativeLanguage: 'vi',
+      targetLanguages: [],
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString()
+    }, { merge: true });
+    console.log('✅ Admin profile saved in Firestore.');
 
-    console.log('\n✨ Database cleanup and seeding completed successfully!');
+    console.log('\n✨ Firebase seeding completed successfully!');
     console.log('\n📋 Summary:');
     console.log('   - Admin: admin@demonteach.com / admin123');
-    console.log('   - User: user@demonteach.com / user123');
-    console.log('   - Lessons: Database wiped clean for AI generation');
-    console.log('\n🚀 You can now start the server with: npm run dev');
+    console.log('\n🚀 You can now start the server with: npm start');
 
     process.exit(0);
   } catch (error) {
