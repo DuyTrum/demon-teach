@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:just_audio/just_audio.dart';
@@ -80,6 +81,8 @@ class SpeakingNotifier extends StateNotifier<SpeakingState> {
   final SpeakingController _controller;
   final AudioPlayer _modelPlayer;
   final AudioPlayer _userPlayer;
+  StreamSubscription? _modelPlayerSubscription;
+  StreamSubscription? _userPlayerSubscription;
 
   SpeakingNotifier(
     this._repository,
@@ -94,18 +97,21 @@ class SpeakingNotifier extends StateNotifier<SpeakingState> {
   /// Initialize microphone permission
   Future<void> _initializePermission() async {
     final hasPermission = await _controller.hasPermission();
+    if (!mounted) return;
     state = state.copyWith(hasPermission: hasPermission);
   }
 
   /// Setup audio player listeners
   void _setupAudioListeners() {
-    _modelPlayer.playerStateStream.listen((playerState) {
+    _modelPlayerSubscription = _modelPlayer.playerStateStream.listen((playerState) {
+      if (!mounted) return;
       if (playerState.processingState == ProcessingState.completed) {
         state = state.copyWith(isPlayingModel: false);
       }
     });
 
-    _userPlayer.playerStateStream.listen((playerState) {
+    _userPlayerSubscription = _userPlayer.playerStateStream.listen((playerState) {
+      if (!mounted) return;
       if (playerState.processingState == ProcessingState.completed) {
         state = state.copyWith(isPlayingUser: false);
       }
@@ -346,6 +352,8 @@ class SpeakingNotifier extends StateNotifier<SpeakingState> {
 
   @override
   void dispose() {
+    _modelPlayerSubscription?.cancel();
+    _userPlayerSubscription?.cancel();
     _controller.dispose();
     _modelPlayer.dispose();
     _userPlayer.dispose();

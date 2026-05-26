@@ -10,6 +10,7 @@ class NotificationService {
 
   /// Initialize notifications plugin and register channel
   static Future<void> initialize() async {
+    if (kIsWeb) return;
     if (_isInitialized) return;
 
     tz.initializeTimeZones();
@@ -67,6 +68,7 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    if (kIsWeb) return;
     await initialize();
 
     const androidDetails = AndroidNotificationDetails(

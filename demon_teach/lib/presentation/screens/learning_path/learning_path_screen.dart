@@ -57,6 +57,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
   late final Animation<double> _pulseAnimation;
   late final Animation<double> _floatAnimation;
   Timer? _uiTimer;
+  String? _lastScrolledLessonId;
 
   @override
   void initState() {
@@ -212,8 +213,14 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
     final currentIdx = path.currentLessonIndex;
     final percentage = path.completionPercentage;
 
-    // Auto-scroll to current node
-    _scrollToCurrentNode(currentIdx, totalLessons);
+    // Auto-scroll to current node only if the current lesson has changed
+    final currentLessonId = path.lessonIds.isNotEmpty && currentIdx < path.lessonIds.length
+        ? path.lessonIds[currentIdx]
+        : 'empty_or_completed';
+    if (_lastScrolledLessonId != currentLessonId) {
+      _lastScrolledLessonId = currentLessonId;
+      _scrollToCurrentNode(currentIdx, totalLessons);
+    }
 
     return Stack(
       children: [

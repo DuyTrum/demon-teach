@@ -3,6 +3,18 @@ import 'package:demon_teach/domain/entities/user.dart';
 import 'package:demon_teach/domain/repositories/auth_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/presentation/providers/language_provider.dart';
+import 'package:demon_teach/presentation/providers/achievement_provider.dart';
+import 'package:demon_teach/presentation/providers/assessment_provider.dart';
+import 'package:demon_teach/presentation/providers/bookmark_provider.dart';
+import 'package:demon_teach/presentation/providers/flashcard_provider.dart';
+import 'package:demon_teach/presentation/providers/goal_provider.dart';
+import 'package:demon_teach/presentation/providers/learning_path_provider.dart';
+import 'package:demon_teach/presentation/providers/listening_provider.dart';
+import 'package:demon_teach/presentation/providers/performance_provider.dart';
+import 'package:demon_teach/presentation/providers/progress_provider.dart';
+import 'package:demon_teach/presentation/providers/quiz_provider.dart';
+import 'package:demon_teach/presentation/providers/review_provider.dart';
+import 'package:demon_teach/presentation/providers/speaking_provider.dart';
 
 // Repository provider (to be overridden in main)
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -40,8 +52,9 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
   final LanguageNotifier _languageNotifier;
+  final Ref _ref;
 
-  AuthNotifier(this._repository, this._languageNotifier)
+  AuthNotifier(this._repository, this._languageNotifier, this._ref)
       : super(const AuthState()) {
     checkAuthStatus();
   }
@@ -122,6 +135,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _repository.logout();
     await _languageNotifier.clearPreferences();
+    
+    // Invalidate all user-specific providers to reset their state
+    _ref.invalidate(achievementProvider);
+    _ref.invalidate(assessmentProvider);
+    _ref.invalidate(bookmarkProvider);
+    _ref.invalidate(flashcardProvider);
+    _ref.invalidate(goalProvider);
+    _ref.invalidate(learningPathProvider);
+    _ref.invalidate(listeningProvider);
+    _ref.invalidate(performanceProvider);
+    _ref.invalidate(progressProvider);
+    _ref.invalidate(quizProvider);
+    _ref.invalidate(reviewProvider);
+    _ref.invalidate(speakingProvider);
+    
     state = const AuthState(isAuthenticated: false);
   }
 
@@ -184,5 +212,6 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(
     ref.watch(authRepositoryProvider),
     ref.read(languageProvider.notifier),
+    ref,
   );
 });

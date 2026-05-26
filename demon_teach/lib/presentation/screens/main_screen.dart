@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -64,16 +65,70 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         if (snapshot.docs.isNotEmpty) {
           final doc = snapshot.docs.first.data();
           if (doc['createdAt'] != null) {
-            final createdAt = (doc['createdAt'] as Timestamp).toDate();
-            // Show only new alerts posted after app startup
-            if (createdAt.isAfter(_appStartTime)) {
+            DateTime? createdAt;
+            if (doc['createdAt'] is Timestamp) {
+              createdAt = (doc['createdAt'] as Timestamp).toDate();
+            } else if (doc['createdAt'] is String) {
+              createdAt = DateTime.tryParse(doc['createdAt'] as String);
+            }
+            // Show only new alerts posted after app startup (using absolute UTC time comparison)
+            if (createdAt != null && createdAt.toUtc().isAfter(_appStartTime.toUtc())) {
               final title = doc['title'] ?? 'Thông báo từ Quỷ Vương 👑';
               final body = doc['body'] ?? '';
-              NotificationService.showNotification(
-                id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-                title: title,
-                body: body,
-              );
+              
+              if (kIsWeb) {
+                // On Web, show a beautiful in-app Dialog
+                if (mounted) {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: const Color(0xFF1E1235),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: const BorderSide(color: Color(0xFF9C7CFF), width: 1.5),
+                      ),
+                      title: Row(
+                        children: [
+                          const Text('😈 ', style: TextStyle(fontSize: 24)),
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      content: Text(
+                        body,
+                        style: const TextStyle(color: Color(0xFFE8E0F0), fontSize: 14),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'XÁC NHẬN',
+                            style: TextStyle(
+                              color: Color(0xFF9C7CFF),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              } else {
+                // On mobile, show system notification
+                NotificationService.showNotification(
+                  id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                  title: title,
+                  body: body,
+                );
+              }
             }
           }
         }

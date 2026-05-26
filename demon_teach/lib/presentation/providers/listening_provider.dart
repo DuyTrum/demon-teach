@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/domain/entities/listening_exercise.dart';
 import 'package:demon_teach/domain/repositories/listening_repository.dart';
@@ -98,6 +99,9 @@ class ListeningState {
 class ListeningNotifier extends StateNotifier<ListeningState> {
   final ListeningRepository _repository;
   final AudioPlayer _audioPlayer;
+  StreamSubscription? _playerStateSubscription;
+  StreamSubscription? _positionSubscription;
+  StreamSubscription? _durationSubscription;
 
   ListeningNotifier(this._repository)
       : _audioPlayer = AudioPlayer(),
@@ -107,7 +111,8 @@ class ListeningNotifier extends StateNotifier<ListeningState> {
 
   void _setupAudioListeners() {
     // Listen to player state changes
-    _audioPlayer.playerStateStream.listen((playerState) {
+    _playerStateSubscription = _audioPlayer.playerStateStream.listen((playerState) {
+      if (!mounted) return;
       if (playerState.processingState == ProcessingState.completed) {
         state = state.copyWith(
           isPlaying: false,
@@ -121,12 +126,14 @@ class ListeningNotifier extends StateNotifier<ListeningState> {
     });
 
     // Listen to position changes
-    _audioPlayer.positionStream.listen((position) {
+    _positionSubscription = _audioPlayer.positionStream.listen((position) {
+      if (!mounted) return;
       state = state.copyWith(currentPosition: position);
     });
 
     // Listen to duration changes
-    _audioPlayer.durationStream.listen((duration) {
+    _durationSubscription = _audioPlayer.durationStream.listen((duration) {
+      if (!mounted) return;
       if (duration != null) {
         state = state.copyWith(totalDuration: duration);
       }
@@ -349,6 +356,9 @@ class ListeningNotifier extends StateNotifier<ListeningState> {
 
   @override
   void dispose() {
+    _playerStateSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
