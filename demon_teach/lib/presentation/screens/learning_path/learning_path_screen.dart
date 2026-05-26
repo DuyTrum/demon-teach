@@ -1,7 +1,11 @@
 import 'dart:math';
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:demon_teach/core/constants/app_constants.dart';
+import 'package:demon_teach/domain/entities/progress.dart';
+import 'package:demon_teach/presentation/providers/progress_provider.dart';
 import 'package:demon_teach/presentation/screens/onboarding/assessment_screen.dart';
 import 'package:demon_teach/presentation/providers/auth_provider.dart';
 import 'package:demon_teach/presentation/providers/language_provider.dart';
@@ -51,6 +55,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
   late final AnimationController _floatController;
   late final Animation<double> _pulseAnimation;
   late final Animation<double> _floatAnimation;
+  Timer? _uiTimer;
 
   @override
   void initState() {
@@ -71,11 +76,18 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
       CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
     );
 
+    _uiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadPath());
   }
 
   @override
   void dispose() {
+    _uiTimer?.cancel();
     _pulseController.dispose();
     _floatController.dispose();
     _scrollController.dispose();
@@ -87,6 +99,10 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
     final languagePref = ref.read(languageProvider).preference;
     if (user != null && languagePref != null) {
       ref.read(learningPathProvider.notifier).loadLearningPath(
+            userId: user.id,
+            targetLanguage: languagePref.targetLanguage,
+          );
+      ref.read(progressProvider.notifier).loadProgress(
             userId: user.id,
             targetLanguage: languagePref.targetLanguage,
           );
@@ -109,6 +125,8 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
   @override
   Widget build(BuildContext context) {
     final pathState = ref.watch(learningPathProvider);
+    final progressState = ref.watch(progressProvider);
+    final progress = progressState.progress;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -124,6 +142,10 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: _kTextLight),
+        actions: [
+          if (progress != null) _buildHeartsIndicator(context, progress),
+          const SizedBox(width: 12),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -144,7 +166,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
                   )
                 : pathState.path == null
                     ? _buildEmptyState()
-                    : _buildAdventureMap(context, pathState),
+                    : _buildAdventureMap(context, pathState, progress),
       ),
     );
   }
@@ -174,7 +196,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
     );
   }
 
-  Widget _buildAdventureMap(BuildContext context, LearningPathState pathState) {
+  Widget _buildAdventureMap(BuildContext context, LearningPathState pathState, Progress? progress) {
     final path = pathState.path!;
     final totalLessons = path.lessonIds.length;
     final currentIdx = path.currentLessonIndex;
@@ -198,10 +220,10 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
             children: [
               const SizedBox(height: 100), // space for AppBar
               // ─── Progress header ───
-              _buildProgressHeader(path, percentage),
+              _buildProgressHeader(path, percentage, progress),
               const SizedBox(height: 24),
               // ─── Map nodes ───
-              _buildMapPath(path, totalLessons, currentIdx),
+              _buildMapPath(path, totalLessons, currentIdx, progress),
               const SizedBox(height: 40),
             ],
           ),
@@ -212,7 +234,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
           left: 0,
           right: 0,
           bottom: 0,
-          child: _buildBottomBar(path, currentIdx),
+          child: _buildBottomBar(path, currentIdx, progress),
         ),
       ],
     );
@@ -221,7 +243,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
   // ─────────────────────────────────────────────
   //  Progress Header
   // ─────────────────────────────────────────────
-  Widget _buildProgressHeader(dynamic path, double percentage) {
+  Widget _buildProgressHeader(dynamic path, double percentage, Progress? progress) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ClipRRect(
@@ -285,7 +307,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
                         ],
                       ),
                     ),
-                    // Soul XP & Streak Column
+                    // XP, Souls & Streak Column
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -298,12 +320,12 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Text('🔥', style: TextStyle(fontSize: 11)),
-                              SizedBox(width: 4),
+                            children: [
+                              const Text('🔥', style: TextStyle(fontSize: 11)),
+                              const SizedBox(width: 4),
                               Text(
-                                '7 Ngày',
-                                style: TextStyle(
+                                '${progress?.currentStreak ?? 0} Ngày',
+                                style: const TextStyle(
                                   color: Color(0xFFFF9100),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 10,
@@ -320,9 +342,9 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: const Color(0xFF00E676).withOpacity(0.4)),
                           ),
-                          child: const Text(
-                            '⚡ 450 Soul XP',
-                            style: TextStyle(
+                          child: Text(
+                            '⚡ ${progress?.totalXP ?? 0} XP • 👻 ${progress?.souls ?? 0}',
+                            style: const TextStyle(
                               color: Color(0xFF00E676),
                               fontWeight: FontWeight.bold,
                               fontSize: 10,
@@ -394,7 +416,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
   // ─────────────────────────────────────────────
   //  Map Path (zigzag nodes with Duolingo-style floating side decorations)
   // ─────────────────────────────────────────────
-  Widget _buildMapPath(dynamic path, int total, int currentIdx) {
+  Widget _buildMapPath(dynamic path, int total, int currentIdx, Progress? progress) {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Column(
@@ -418,6 +440,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
           isCompleted: isCompleted,
           isCurrent: isCurrent,
           isLocked: isLocked,
+          progress: progress,
         );
 
         final decorationWidget = _buildDecoration(index);
@@ -538,6 +561,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
     required bool isCompleted,
     required bool isCurrent,
     required bool isLocked,
+    Progress? progress,
   }) {
     // Locked nodes are significantly smaller to create a strong sense of hierarchy
     final nodeSize = isCurrent
@@ -602,7 +626,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
                   : Text(
                       icon,
                       style: const TextStyle(fontSize: 26),
-                    ),
+                     ),
         ),
       ),
     );
@@ -617,10 +641,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
 
     return GestureDetector(
       onTap: isCurrent
-          ? () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DailyLessonScreen()),
-              )
+          ? () => _startLesson(context, progress)
           : null,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -742,7 +763,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
   // ─────────────────────────────────────────────
   //  Bottom Floating Bar
   // ─────────────────────────────────────────────
-  Widget _buildBottomBar(dynamic path, int currentIdx) {
+  Widget _buildBottomBar(dynamic path, int currentIdx, Progress? progress) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       decoration: BoxDecoration(
@@ -764,12 +785,7 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
               child: GestureDetector(
                 onTap: path.isCompleted
                     ? null
-                    : () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const DailyLessonScreen(),
-                          ),
-                        ),
+                    : () => _startLesson(context, progress),
                 child: Container(
                   height: 56,
                   decoration: BoxDecoration(
@@ -861,6 +877,255 @@ class _LearningPathScreenState extends ConsumerState<LearningPathScreen>
       default:
         return 'Bài học';
     }
+  }
+
+  Widget _buildHeartsIndicator(BuildContext context, Progress progress) {
+    final hasCooldown = progress.hearts < AppConstants.maxHearts;
+    final countdownStr = _formatRemainingTime(progress);
+
+    return GestureDetector(
+      onTap: () => _showHeartsRefillDialog(context, progress),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF1744).withOpacity(0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFFF1744).withOpacity(0.4),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF1744).withOpacity(0.15),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.favorite,
+              color: Color(0xFFFF1744),
+              size: 20,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '${progress.hearts}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            if (hasCooldown && countdownStr.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Text(
+                countdownStr,
+                style: const TextStyle(
+                  color: Color(0xFFFF1744),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatRemainingTime(Progress progress) {
+    if (progress.hearts >= AppConstants.maxHearts) return '';
+    final nextHeartTime = progress.lastHeartRegenTime.add(AppConstants.heartRegenInterval);
+    final remaining = nextHeartTime.difference(DateTime.now());
+    if (remaining.isNegative) return '00:00';
+    final minutes = remaining.inMinutes.toString().padLeft(2, '0');
+    final seconds = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  void _showHeartsRefillDialog(BuildContext context, Progress progress) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final progressState = ref.watch(progressProvider);
+            final currentProgress = progressState.progress ?? progress;
+            final isFull = currentProgress.hearts >= AppConstants.maxHearts;
+            final hasEnoughSouls = currentProgress.souls >= 50;
+            final isUpdating = progressState.isUpdating;
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A0A2E).withOpacity(0.92),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: const Color(0xFFFF1744).withOpacity(0.4),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF1744).withOpacity(0.15),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          '🔮 HỒI PHỤC TIM MA PHÁP',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(AppConstants.maxHearts, (index) {
+                            final isFilled = index < currentProgress.hearts;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Icon(
+                                Icons.favorite,
+                                color: isFilled ? const Color(0xFFFF1744) : Colors.white24,
+                                size: 28,
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 16),
+                        if (isFull) ...[
+                          const Text(
+                            'Tim Ma Pháp của ngươi đã đầy tràn ma lực!',
+                            style: TextStyle(color: Colors.greenAccent, fontSize: 14),
+                            textAlign: TextAlign.center,
+                          ),
+                        ] else ...[
+                          Text(
+                            'Tim sẽ tự động hồi phục sau mỗi ${_formatInterval(AppConstants.heartRegenInterval)}.\nHoặc ngươi có thể dùng Linh Hồn để đổi lấy Tim ngay lập tức!',
+                            style: const TextStyle(color: Color(0xFF8A7DA0), fontSize: 13),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Tài sản: 👻 ${currentProgress.souls} Linh Hồn',
+                                style: TextStyle(
+                                  color: hasEnoughSouls ? Colors.greenAccent : Colors.redAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomButton(
+                                text: 'Đóng',
+                                isOutlined: true,
+                                onPressed: () => Navigator.pop(dialogContext),
+                              ),
+                            ),
+                            if (!isFull) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: CustomButton(
+                                  text: 'Hồi phục 1 Tim (-50 Linh Hồn)',
+                                  isLoading: isUpdating,
+                                  onPressed: (!hasEnoughSouls || isUpdating)
+                                      ? null
+                                      : () async {
+                                          final success = await ref
+                                              .read(progressProvider.notifier)
+                                              .refillHeartWithSouls(
+                                                userId: currentProgress.userId,
+                                                targetLanguage: currentProgress.targetLanguage,
+                                              );
+                                          if (success && context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Hồi phục Tim thành công! 💖 Ma lực đã gia tăng.',
+                                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                                ),
+                                                backgroundColor: Color(0xFF43A047),
+                                              ),
+                                            );
+                                          } else if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Hồi phục thất bại!'),
+                                                backgroundColor: Colors.redAccent,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _formatInterval(Duration duration) {
+    if (duration.inMinutes > 0) {
+      return '${duration.inMinutes} phút';
+    }
+    return '${duration.inSeconds} giây';
+  }
+
+  void _startLesson(BuildContext context, Progress? progress) {
+    if (progress == null) return;
+    if (progress.hearts <= 0) {
+      _showHeartsRefillDialog(context, progress);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '😈 Không đủ Tim Ma Pháp để bắt đầu bài học mới! Hãy hồi phục ngay.',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DailyLessonScreen()),
+    );
   }
 
   void _showModifyPathSheet(BuildContext context, path) {

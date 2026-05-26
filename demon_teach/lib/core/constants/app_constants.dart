@@ -1,11 +1,15 @@
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 
 /// Application-wide constants
 class AppConstants {
   // App Information
   static const String appName = 'Demon Teach';
   static const String appVersion = '1.0.0';
+
+  // Magic Hearts Config
+  static const int maxHearts = 5;
+  static Duration get heartRegenInterval => kDebugMode ? const Duration(minutes: 3) : const Duration(minutes: 30);
 
   // Supported Languages
   static const List<String> supportedTargetLanguages = ['en', 'zh', 'ko'];

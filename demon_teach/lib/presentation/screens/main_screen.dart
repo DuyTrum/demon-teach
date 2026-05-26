@@ -7,6 +7,7 @@ import 'package:demon_teach/presentation/providers/language_provider.dart';
 import 'package:demon_teach/presentation/screens/learning_path/learning_path_screen.dart';
 import 'package:demon_teach/presentation/screens/progress/progress_dashboard_screen.dart';
 import 'package:demon_teach/presentation/screens/review/review_queue_screen.dart';
+import 'package:demon_teach/presentation/screens/leaderboard/leaderboard_screen.dart';
 import 'package:demon_teach/presentation/screens/profile/profile_screen.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
@@ -30,6 +31,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final List<Widget> screens = [
       const LearningPathScreen(),
       ReviewQueueScreen(userId: userId),
+      const LeaderboardScreen(),
       ProgressDashboardScreen(userId: userId, targetLanguage: targetLang),
       const ProfileScreen(),
     ];
@@ -81,6 +83,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 BottomNavigationBarItem(
                   icon: Icon(Icons.replay_rounded),
                   label: 'Ôn tập',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.emoji_events_rounded),
+                  label: 'Xếp hạng',
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.bar_chart_rounded),

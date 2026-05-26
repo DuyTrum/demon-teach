@@ -20,6 +20,7 @@ abstract class LessonRepository {
     required String topic,
     required String language,
     required String difficulty,
+    String? category,
     double? assessmentScore,
     String? goalType,
     int? dailyStudyMinutes,

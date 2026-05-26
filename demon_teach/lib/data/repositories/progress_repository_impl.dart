@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:demon_teach/core/constants/app_constants.dart';
 import 'package:demon_teach/core/errors/failures.dart';
 import 'package:demon_teach/core/utils/result.dart';
 import 'package:demon_teach/domain/entities/progress.dart';
@@ -35,7 +36,11 @@ class ProgressRepositoryImpl implements ProgressRepository {
       }
 
       final progress = Progress.fromJson(docSnap.data()!);
-      return Result.success(progress);
+      final regeneratedProgress = _tracker.checkAndRegenerateHearts(progress);
+      if (regeneratedProgress != progress) {
+        await updateProgress(regeneratedProgress);
+      }
+      return Result.success(regeneratedProgress);
     } catch (e) {
       return Result.failure(
         ServerFailure(message: 'Failed to get progress from Firestore: ${e.toString()}'),
@@ -71,8 +76,14 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
       return await progressResult.when(
         success: (progress) async {
+          int oldLevel = (progress.totalXP / 100).floor() + 1;
+          int newLevel = ((progress.totalXP + xp) / 100).floor() + 1;
+          int levelsGained = newLevel - oldLevel;
+          int soulsGained = levelsGained * 50; // 50 souls per level up
+
           final updatedProgress = progress.copyWith(
             totalXP: progress.totalXP + xp,
+            souls: progress.souls + soulsGained,
             updatedAt: DateTime.now(),
           );
 
@@ -150,6 +161,96 @@ class ProgressRepositoryImpl implements ProgressRepository {
       return Result.failure(
         ServerFailure(
             message: 'Failed to increment lessons completed: ${e.toString()}'),
+      );
+    }
+  }
+
+  @override
+  Future<Result<Progress>> consumeHeart(
+    String userId,
+    String targetLanguage,
+  ) async {
+    try {
+      final progressResult = await getProgress(userId, targetLanguage);
+
+      return await progressResult.when(
+        success: (progress) async {
+          if (progress.hearts <= 0) {
+            return Result.success(progress);
+          }
+
+          final now = DateTime.now();
+          // If hearts was at max (5), set regen timer to now when consuming
+          final newRegenTime = progress.hearts == AppConstants.maxHearts
+              ? now
+              : progress.lastHeartRegenTime;
+
+          final updatedProgress = progress.copyWith(
+            hearts: progress.hearts - 1,
+            lastHeartRegenTime: newRegenTime,
+            updatedAt: now,
+          );
+
+          final updateResult = await updateProgress(updatedProgress);
+
+          return updateResult.when(
+            success: (_) => Result.success(updatedProgress),
+            failure: (failure) => Result.failure(failure),
+          );
+        },
+        failure: (failure) => Future.value(Result.failure(failure)),
+      );
+    } catch (e) {
+      return Result.failure(
+        ServerFailure(message: 'Failed to consume heart: ${e.toString()}'),
+      );
+    }
+  }
+
+  @override
+  Future<Result<Progress>> refillHeartWithSouls(
+    String userId,
+    String targetLanguage,
+  ) async {
+    try {
+      final progressResult = await getProgress(userId, targetLanguage);
+
+      return await progressResult.when(
+        success: (progress) async {
+          if (progress.hearts >= AppConstants.maxHearts) {
+            return Result.failure(
+              const ServerFailure(message: '👿 Thần lực đã đầy 5/5 Tim, không thể nạp thêm!'),
+            );
+          }
+
+          if (progress.souls < 50) {
+            return Result.failure(
+              const ServerFailure(message: '👿 Ngươi không đủ 50 Souls (Linh hồn) để đổi lấy ma lực!'),
+            );
+          }
+
+          final now = DateTime.now();
+          final newHearts = progress.hearts + 1;
+          final updatedProgress = progress.copyWith(
+            hearts: newHearts,
+            souls: progress.souls - 50,
+            // If hearts becomes full, reset regen timer to now
+            lastHeartRegenTime: newHearts == AppConstants.maxHearts ? now : progress.lastHeartRegenTime,
+            updatedAt: now,
+          );
+
+          final updateResult = await updateProgress(updatedProgress);
+
+          return updateResult.when(
+            success: (_) => Result.success(updatedProgress),
+            failure: (failure) => Result.failure(failure),
+          );
+        },
+        failure: (failure) => Future.value(Result.failure(failure)),
+      );
+    } catch (e) {
+      return Result.failure(
+        ServerFailure(message: 'Failed to refill heart with Souls: ${e.toString()}'),
       );
     }
   }

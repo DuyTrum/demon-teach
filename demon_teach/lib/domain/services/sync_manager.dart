@@ -126,13 +126,12 @@ class SyncManager {
     required Progress local,
     required Progress remote,
   }) {
+    final isLocalNewer = local.updatedAt.isAfter(remote.updatedAt);
     return Progress(
       userId: local.userId,
       targetLanguage: local.targetLanguage,
       totalXP: _max(local.totalXP, remote.totalXP),
-      currentStreak: local.updatedAt.isAfter(remote.updatedAt)
-          ? local.currentStreak
-          : remote.currentStreak,
+      currentStreak: isLocalNewer ? local.currentStreak : remote.currentStreak,
       longestStreak: _max(local.longestStreak, remote.longestStreak),
       lessonsCompleted: _max(local.lessonsCompleted, remote.lessonsCompleted),
       lastLessonDate: _mostRecent(local.lastLessonDate, remote.lastLessonDate),
@@ -141,6 +140,9 @@ class SyncManager {
           : remote.createdAt,
       updatedAt:
           _mostRecent(local.updatedAt, remote.updatedAt) ?? DateTime.now(),
+      hearts: isLocalNewer ? local.hearts : remote.hearts,
+      lastHeartRegenTime: isLocalNewer ? local.lastHeartRegenTime : remote.lastHeartRegenTime,
+      souls: isLocalNewer ? local.souls : remote.souls,
     );
   }
 

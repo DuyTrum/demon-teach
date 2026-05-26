@@ -1,4 +1,6 @@
 import 'dart:ui';
+import 'dart:async';
+import 'package:demon_teach/core/constants/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:demon_teach/core/theme/app_theme.dart';
@@ -25,6 +27,8 @@ class ProgressDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScreen> {
+  Timer? _uiTimer;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +43,18 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
             targetLanguage: widget.targetLanguage,
           );
     });
+
+    _uiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _uiTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -177,6 +193,8 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
           children: [
             _buildLevelCard(context, state.progress!),
             const SizedBox(height: AppTheme.spacingLg),
+            _buildHeartsCard(context, state.progress!),
+            const SizedBox(height: AppTheme.spacingLg),
             _buildStreakCard(context, state.progress!),
             const SizedBox(height: AppTheme.spacingLg),
             _buildStatsGrid(context, state.progress!),
@@ -241,9 +259,9 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
                       ),
                       const SizedBox(height: AppTheme.spacingXs),
                       Text(
-                        '${progress.totalXP} XP',
+                        '${progress.totalXP} XP • ${progress.souls} Linh Hồn',
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 18,
                           color: AppTheme.demonTextMuted,
                           fontWeight: FontWeight.w600,
                         ),
@@ -708,6 +726,186 @@ class _ProgressDashboardScreenState extends ConsumerState<ProgressDashboardScree
                 ),
               );
             }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeartsCard(BuildContext context, Progress currentProgress) {
+    final isFull = currentProgress.hearts >= AppConstants.maxHearts;
+    final hasEnoughSouls = currentProgress.souls >= 50;
+    final progressState = ref.watch(progressProvider);
+    final isUpdating = progressState.isUpdating;
+    
+    // Remaining time formatted
+    final nextHeartTime = currentProgress.lastHeartRegenTime.add(AppConstants.heartRegenInterval);
+    final remaining = nextHeartTime.difference(DateTime.now());
+    String countdownStr = '';
+    if (!isFull) {
+      if (remaining.isNegative) {
+        countdownStr = '00:00';
+      } else {
+        final minutes = remaining.inMinutes.toString().padLeft(2, '0');
+        final seconds = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+        countdownStr = '$minutes:$seconds';
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.demonNodeLocked.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFF1744).withOpacity(0.3)),
+      ),
+      padding: const EdgeInsets.all(AppTheme.spacingLg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF1744).withOpacity(0.15),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF1744).withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 1,
+                    )
+                  ],
+                ),
+                child: const Icon(
+                  Icons.favorite,
+                  size: 32,
+                  color: Color(0xFFFF1744),
+                ),
+              ),
+              const SizedBox(width: AppTheme.spacingMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tim Ma Pháp',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: List.generate(AppConstants.maxHearts, (index) {
+                        final isFilled = index < currentProgress.hearts;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Icon(
+                            Icons.favorite,
+                            color: isFilled ? const Color(0xFFFF1744) : Colors.white24,
+                            size: 20,
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    isFull ? 'Đầy Năng Lượng' : 'Hồi phục tiếp theo',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.demonTextMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isFull ? '🔥 FULL' : countdownStr,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isFull ? Colors.greenAccent : const Color(0xFFFF1744),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.spacingLg),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  isFull
+                      ? 'Năng lượng đang đạt giới hạn tối đa.'
+                      : 'Hồi phục 1 Tim bằng 50 Linh Hồn.\n(Ngươi đang có 👻 ${currentProgress.souls} Linh Hồn)',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.demonTextLight,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: (isFull || !hasEnoughSouls || isUpdating)
+                    ? null
+                    : () async {
+                        final success = await ref
+                            .read(progressProvider.notifier)
+                            .refillHeartWithSouls(
+                              userId: currentProgress.userId,
+                              targetLanguage: currentProgress.targetLanguage,
+                            );
+                        if (success && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Hồi phục Tim thành công! 💖 Ma lực đã gia tăng.',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              backgroundColor: Color(0xFF43A047),
+                            ),
+                          );
+                        } else if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Hồi phục thất bại!'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF1744),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.white12,
+                  disabledForegroundColor: Colors.white24,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: isFull
+                    ? const Text('Đã Đầy', style: TextStyle(fontWeight: FontWeight.bold))
+                    : isUpdating
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Đổi 100 XP', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
         ],
       ),
     );

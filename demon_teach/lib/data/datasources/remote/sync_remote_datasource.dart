@@ -252,6 +252,13 @@ class SyncRemoteDataSourceImpl implements SyncRemoteDataSource {
           : null,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+      hearts: json['hearts'] as int? ?? 5,
+      lastHeartRegenTime: json['lastHeartRegenTime'] != null
+          ? DateTime.parse(json['lastHeartRegenTime'] as String)
+          : (json['updatedAt'] != null
+              ? DateTime.parse(json['updatedAt'] as String)
+              : DateTime.now()),
+      souls: json['souls'] as int? ?? 0,
     );
   }
 
@@ -266,6 +273,9 @@ class SyncRemoteDataSourceImpl implements SyncRemoteDataSource {
       'lastLessonDate': progress.lastLessonDate?.toIso8601String(),
       'createdAt': progress.createdAt.toIso8601String(),
       'updatedAt': progress.updatedAt.toIso8601String(),
+      'hearts': progress.hearts,
+      'lastHeartRegenTime': progress.lastHeartRegenTime.toIso8601String(),
+      'souls': progress.souls,
     };
   }
 

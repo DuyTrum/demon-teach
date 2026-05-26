@@ -37,7 +37,7 @@ const LESSONS_DATA = [
     ],
     quiz: [
       { questionText: "Translate: 'Một trăm'", options: ["Ten", "Fifty", "One hundred", "One thousand"], correctAnswer: "One hundred", explanation: "One hundred là số 100." },
-      { questionText: "Translate: '8 giờ rưỡi'", options: ["Eight o'clock", "Half past eight", "Quarter to eight", "Half past nine"], correctAnswer: "Half past eight", explanation: "Half past eight nghĩa là 8 giờ rưỡi." }
+      { type: "fillInBlank", questionText: "Điền từ tiếng Anh dịch của 'rưỡi (giờ)': 'Half ______'", correctAnswer: "past", explanation: "Half past nghĩa là rưỡi (giờ)." }
     ],
     listeningText: "The train leaves at seven o'clock sharp.",
     listeningQuestion: "What time does the train leave?",
@@ -79,7 +79,7 @@ const LESSONS_DATA = [
     ],
     quiz: [
       { questionText: "Translate: 'Thức dậy'", options: ["Go to bed", "Get up", "Eat lunch", "Work"], correctAnswer: "Get up", explanation: "Get up có nghĩa là thức dậy." },
-      { questionText: "Translate: 'Ăn sáng'", options: ["Have dinner", "Have lunch", "Have breakfast", "Drink coffee"], correctAnswer: "Have breakfast", explanation: "Have breakfast nghĩa là ăn sáng." }
+      { type: "fillInBlank", questionText: "Điền cụm từ tiếng Anh của 'ăn sáng': 'Have ___________'", correctAnswer: "breakfast", explanation: "Have breakfast nghĩa là ăn sáng." }
     ],
     listeningText: "I usually read a book before I go to bed.",
     listeningQuestion: "What does the speaker do before bed?",
@@ -88,10 +88,10 @@ const LESSONS_DATA = [
     speaking: { phrase: "I go to work by bus", translation: "Tôi đi làm bằng xe buýt", pronunciation: "/aɪ ɡoʊ tuː wɜːrk baɪ bʌs/" }
   },
   {
-    id: "en_beginner_vocabulary_005",
+    id: "en_beginner_reading_005",
     title: "Topic: Common Foods & Drinks (EN)",
     difficulty: "beginner",
-    category: "vocabulary",
+    category: "reading",
     topic: "Common Foods & Drinks",
     vocab: [
       { word: "Bread", translation: "Bánh mì", pronunciation: "/bred/", example: "I eat bread for breakfast.", example_translation: "Tôi ăn bánh mì cho bữa sáng." },
@@ -101,6 +101,22 @@ const LESSONS_DATA = [
     quiz: [
       { questionText: "Translate: 'Sữa'", options: ["Milk", "Water", "Tea", "Coffee"], correctAnswer: "Milk", explanation: "Milk có nghĩa là Sữa." },
       { questionText: "Translate: 'Bánh mì'", options: ["Rice", "Bread", "Meat", "Egg"], correctAnswer: "Bread", explanation: "Bread nghĩa là Bánh mì." }
+    ],
+    readingText: "I usually eat warm bread with butter and drink a glass of fresh milk for breakfast. Sometimes I also eat a red apple because it is very healthy.",
+    readingTranslation: "Tôi thường ăn bánh mì ấm với bơ và uống một ly sữa tươi cho bữa sáng. Thỉnh thoảng tôi cũng ăn một quả táo đỏ vì nó rất tốt cho sức khỏe.",
+    readingQuestions: [
+      {
+        questionText: "What does the writer drink for breakfast?",
+        options: ["Tea", "Coffee", "Fresh milk", "Water"],
+        correctAnswer: "Fresh milk",
+        explanation: "Đoạn văn viết: 'drink a glass of fresh milk for breakfast'."
+      },
+      {
+        questionText: "What color is the apple?",
+        options: ["Green", "Yellow", "Red", "Black"],
+        correctAnswer: "Red",
+        explanation: "Đoạn văn viết: 'eat a red apple'."
+      }
     ],
     listeningText: "I would like to have a hot cup of tea, please.",
     listeningQuestion: "What does the speaker want to drink?",
@@ -195,10 +211,10 @@ const LESSONS_DATA = [
     speaking: { phrase: "How do I get to the supermarket?", translation: "Làm thế nào để đi tới siêu thị?", pronunciation: "/haʊ duː aɪ ɡet tuː ðə ˈsuːpərmɑːrkɪt/" }
   },
   {
-    id: "en_elementary_vocabulary_005",
+    id: "en_elementary_reading_005",
     title: "Topic: Body Parts & Health (EN)",
     difficulty: "elementary",
-    category: "vocabulary",
+    category: "reading",
     topic: "Body Parts & Health",
     vocab: [
       { word: "Headache", translation: "Cơn đau đầu", pronunciation: "/ˈhedeɪk/", example: "I have a terrible headache.", example_translation: "Tôi có một cơn đau đầu kinh khủng." },
@@ -208,6 +224,22 @@ const LESSONS_DATA = [
     quiz: [
       { questionText: "Translate: 'Bác sĩ'", options: ["Teacher", "Driver", "Doctor", "Cook"], correctAnswer: "Doctor", explanation: "Doctor nghĩa là bác sĩ." },
       { questionText: "Translate: 'Đau đầu'", options: ["Stomachache", "Headache", "Fever", "Cough"], correctAnswer: "Headache", explanation: "Headache nghĩa là đau đầu." }
+    ],
+    readingText: "If you have a high fever or a terrible headache, you should see a doctor immediately. Do not forget to take your medicine after meals and get enough rest.",
+    readingTranslation: "Nếu bạn bị sốt cao hoặc đau đầu dữ dội, bạn nên đi khám bác sĩ ngay lập tức. Đừng quên uống thuốc sau khi ăn và nghỉ ngơi đầy đủ.",
+    readingQuestions: [
+      {
+        questionText: "When should you see a doctor?",
+        options: ["If you feel happy", "If you have a fever or headache", "Before going to sleep", "When you want to eat"],
+        correctAnswer: "If you have a fever or headache",
+        explanation: "Đoạn văn viết: 'If you have a high fever or a terrible headache, you should see a doctor'."
+      },
+      {
+        questionText: "When should you take your medicine?",
+        options: ["Before meals", "After meals", "While running", "Only at night"],
+        correctAnswer: "After meals",
+        explanation: "Đoạn văn viết: 'take your medicine after meals'."
+      }
     ],
     listeningText: "If you have a high fever, rest and drink lots of water.",
     listeningQuestion: "What should you do if you have a fever?",
@@ -302,10 +334,10 @@ const LESSONS_DATA = [
     speaking: { phrase: "What is the Wi-Fi password?", translation: "Mật khẩu Wi-Fi là gì?", pronunciation: "/wʌt ɪz ðə ˈwaɪfaɪ ˈpæswɜːrd/" }
   },
   {
-    id: "en_intermediate_vocabulary_005",
+    id: "en_intermediate_reading_005",
     title: "Topic: Environment & Nature (EN)",
     difficulty: "intermediate",
-    category: "vocabulary",
+    category: "reading",
     topic: "Environment & Nature",
     vocab: [
       { word: "Pollution", translation: "Sự ô nhiễm", pronunciation: "/pəˈluːʃn/", example: "Air pollution is a global issue.", example_translation: "Ô nhiễm không khí là một vấn đề toàn cầu." },
@@ -315,6 +347,22 @@ const LESSONS_DATA = [
     quiz: [
       { questionText: "Translate: 'Tái chế'", options: ["Waste", "Pollute", "Recycle", "Burn"], correctAnswer: "Recycle", explanation: "Recycle có nghĩa là tái chế." },
       { questionText: "Translate: 'Sự ô nhiễm'", options: ["Ecology", "Environment", "Pollution", "Climate"], correctAnswer: "Pollution", explanation: "Pollution nghĩa là sự ô nhiễm." }
+    ],
+    readingText: "Industrial pollution is a global issue that severely threatens wildlife and natural habitats. If we want to protect our environment, we must recycle plastic, reduce waste, and conserve energy.",
+    readingTranslation: "Tôi thường ăn bánh mì ấm với bơ và uống một ly sữa tươi cho bữa sáng. Thỉnh thoảng tôi cũng ăn một quả táo đỏ vì nó rất tốt cho sức khỏe.",
+    readingQuestions: [
+      {
+        questionText: "What is a global issue according to the text?",
+        options: ["Wild animals", "Industrial pollution", "Saving energy", "Planting trees"],
+        correctAnswer: "Industrial pollution",
+        explanation: "Đoạn văn nói: 'Industrial pollution is a global issue'."
+      },
+      {
+        questionText: "What should we recycle to protect the environment?",
+        options: ["Plastic", "Wildlife", "Energy", "Carbon emissions"],
+        correctAnswer: "Plastic",
+        explanation: "Đoạn văn nói: 'we must recycle plastic'."
+      }
     ],
     listeningText: "Water pollution harms marine life and clean drinking water.",
     listeningQuestion: "What does water pollution harm?",
@@ -409,10 +457,10 @@ const LESSONS_DATA = [
     speaking: { phrase: "This painting is magnificent", translation: "Bức tranh này thật tráng lệ", pronunciation: "/ðɪs ˈpeɪntɪŋ ɪz mæɡˈnɪfɪsnt/" }
   },
   {
-    id: "en_upperIntermediate_vocabulary_005",
+    id: "en_upperIntermediate_reading_005",
     title: "Topic: Society & Urban Life (EN)",
     difficulty: "upperIntermediate",
-    category: "vocabulary",
+    category: "reading",
     topic: "Society & Urban Life",
     vocab: [
       { word: "Infrastructure", translation: "Cơ sở hạ tầng", pronunciation: "/ˈɪnfrəstrʌktʃər/", example: "The city has modern infrastructure.", example_translation: "Thành phố có cơ sở hạ tầng hiện đại." },
@@ -422,6 +470,22 @@ const LESSONS_DATA = [
     quiz: [
       { questionText: "Translate: 'Cơ sở hạ tầng'", options: ["Infrastructure", "Building", "Roadway", "Bridges"], correctAnswer: "Infrastructure", explanation: "Infrastructure nghĩa là cơ sở hạ tầng." },
       { questionText: "Translate: 'Tắc nghẽn'", options: ["Accident", "Highway", "Congestion", "Crowd"], correctAnswer: "Congestion", explanation: "Congestion nghĩa là sự tắc nghẽn." }
+    ],
+    readingText: "Modern cities suffer from heavy traffic congestion, which increases carbon emissions and affects the diversity of urban ecosystems. Improving infrastructure and community support is essential for sustainable development.",
+    readingTranslation: "Các thành phố hiện đại phải chịu cảnh tắc nghẽn giao thông nặng nề, điều này làm gia tăng lượng khí thải carbon và ảnh hưởng đến sự đa dạng của hệ sinh thái đô thị. Cải thiện cơ sở hạ tầng và sự hỗ trợ từ cộng đồng là rất cần thiết cho sự phát triển bền vững.",
+    readingQuestions: [
+      {
+        questionText: "What is a major problem in modern cities?",
+        options: ["Lack of diversity", "Clean energy", "Traffic congestion", "Forest fires"],
+        correctAnswer: "Traffic congestion",
+        explanation: "Đoạn văn viết: 'Modern cities suffer from heavy traffic congestion'."
+      },
+      {
+        questionText: "What is essential for sustainable development?",
+        options: ["Building more cars", "Improving infrastructure and community support", "Increasing emissions", "Moving to rural areas"],
+        correctAnswer: "Improving infrastructure and community support",
+        explanation: "Đoạn văn viết: 'Improving infrastructure and community support is essential for sustainable development'."
+      }
     ],
     listeningText: "High traffic congestion in urban cities leads to increased carbon emissions.",
     listeningQuestion: "What does traffic congestion lead to?",
@@ -516,10 +580,10 @@ const LESSONS_DATA = [
     speaking: { phrase: "Reality is shaped by perception", translation: "Thực tại được định hình bởi cảm nhận", pronunciation: "/riˈæləti ɪz ʃeɪpt baɪ pərˈsepʃn/" }
   },
   {
-    id: "en_advanced_vocabulary_005",
+    id: "en_advanced_reading_005",
     title: "Topic: Geopolitics & Trade (EN)",
     difficulty: "advanced",
-    category: "vocabulary",
+    category: "reading",
     topic: "Geopolitics & Trade",
     vocab: [
       { word: "Sovereignty", translation: "Chủ quyền quốc gia", pronunciation: "/ˈsɑːvrənti/", example: "Respect the territorial sovereignty.", example_translation: "Tôn trọng chủ quyền lãnh thổ quốc gia." },
@@ -529,6 +593,22 @@ const LESSONS_DATA = [
     quiz: [
       { questionText: "Translate: 'Thuế quan'", options: ["Tax", "Tariff", "Fine", "Interest"], correctAnswer: "Tariff", explanation: "Tariff là thuế quan đánh trên hàng hóa nhập khẩu." },
       { questionText: "Translate: 'Hiệp ước'", options: ["Treaty", "Contract", "Pact", "Charter"], correctAnswer: "Treaty", explanation: "Treaty nghĩa là Hiệp ước quốc tế." }
+    ],
+    readingText: "The signing of the new trade treaty marks a significant shift in regional geopolitics. By reducing import tariffs, the treaty aims to enhance economic cooperation while fully respecting the national sovereignty of each member state.",
+    readingTranslation: "Việc ký kết hiệp ước thương mại mới đánh dấu một bước chuyển dịch quan trọng trong địa chính trị khu vực. Bằng cách giảm thuế quan nhập khẩu, hiệp ước nhằm tăng cường hợp tác kinh tế trong khi vẫn tôn trọng đầy đủ chủ quyền quốc gia của mỗi nước thành viên.",
+    readingQuestions: [
+      {
+        questionText: "What does the signing of the treaty mark?",
+        options: ["A rise in tariffs", "A shift in regional geopolitics", "A conflict between nations", "A decline in trade"],
+        correctAnswer: "A shift in regional geopolitics",
+        explanation: "Đoạn văn viết: 'marks a significant shift in regional geopolitics'."
+      },
+      {
+        questionText: "What is a goal of the trade treaty?",
+        options: ["To increase import tariffs", "To eliminate national sovereignty", "To enhance economic cooperation", "To restrict borders"],
+        correctAnswer: "To enhance economic cooperation",
+        explanation: "Đoạn văn viết: 'the treaty aims to enhance economic cooperation'."
+      }
     ],
     listeningText: "The new global trade treaty aims to reduce import tariffs across borders.",
     listeningQuestion: "What does the new trade treaty aim to reduce?",
@@ -553,21 +633,24 @@ async function seedPredefinedV2() {
       // Construct flashcards formatted data
       const flashcards = raw.vocab.map((v, index) => ({
         id: `${raw.id}_fc_${index + 1}`,
+        lessonId: raw.id,
         frontText: v.word,
         backText: v.translation,
         phonetic: v.pronunciation,
-        example: v.example,
-        example_translation: v.example_translation,
+        exampleUsage: v.example || '',
+        exampleTranslation: v.example_translation || '',
+        example: v.example || '',
+        example_translation: v.example_translation || '',
         audioUrl: `/api/tts?text=${encodeURIComponent(v.word)}&language=en`
       }));
 
       // Construct quiz formatted data
       const quizQuestions = raw.quiz.map((q, index) => ({
         id: `${raw.id}_q_${index + 1}`,
-        type: "multiple-choice",
+        type: q.type || "multiple-choice",
         content: {
           questionText: q.questionText,
-          options: q.options,
+          options: q.options || [],
           correctAnswer: q.correctAnswer,
           explanation: q.explanation
         }
@@ -606,27 +689,46 @@ async function seedPredefinedV2() {
             pronunciation: v.pronunciation,
             audioUrl: `/api/tts?text=${encodeURIComponent(v.word)}&language=en`
           }))
-        },
-        {
-          type: "practice",
-          exercises: raw.quiz.map(q => ({
-            question: q.questionText,
-            options: q.options,
-            correctAnswer: q.correctAnswer
-          }))
-        },
-        {
-          type: "speaking",
-          items: [
-            {
-              phrase: raw.speaking.phrase,
-              translation: raw.speaking.translation,
-              pronunciation: raw.speaking.pronunciation,
-              audioUrl: `/api/tts?text=${encodeURIComponent(raw.speaking.phrase)}&language=en`
-            }
-          ]
         }
       ];
+
+      if (raw.readingText) {
+        sections.push({
+          type: "reading",
+          passageText: raw.readingText,
+          translation: raw.readingTranslation || '',
+          questions: (raw.readingQuestions || []).map((rq, idx) => ({
+            id: `${raw.id}_rq_${idx + 1}`,
+            question: rq.questionText,
+            options: rq.options || [],
+            correctAnswer: rq.correctAnswer,
+            explanation: rq.explanation || ''
+          }))
+        });
+      }
+
+      sections.push({
+        type: "practice",
+        exercises: raw.quiz.map(q => ({
+          type: q.type || "multiple-choice",
+          question: q.questionText,
+          options: q.options || [],
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation || ''
+        }))
+      });
+
+      sections.push({
+        type: "speaking",
+        items: [
+          {
+            phrase: raw.speaking.phrase,
+            translation: raw.speaking.translation,
+            pronunciation: raw.speaking.pronunciation,
+            audioUrl: `/api/tts?text=${encodeURIComponent(raw.speaking.phrase)}&language=en`
+          }
+        ]
+      });
 
       // Form final lesson object matching Firestore structure
       const lessonDocument = {

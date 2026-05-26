@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'package:demon_teach/core/errors/failures.dart';
 import 'package:demon_teach/core/utils/result.dart';
@@ -5,17 +6,17 @@ import 'package:demon_teach/domain/entities/learning_goal.dart';
 import 'package:demon_teach/domain/repositories/goal_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Implementation of GoalRepository using SharedPreferences
+/// Implementation of GoalRepository using Firestore
 class GoalRepositoryImpl implements GoalRepository {
   final SharedPreferences _prefs;
-  static const String _goalKey = 'learning_goal_preferences';
 
   GoalRepositoryImpl(this._prefs);
+
+  String? get _userId => _prefs.getString('current_user_id');
 
   @override
   Future<Result<void>> saveGoalPreferences(LearningGoal goal) async {
     try {
-      // Validate study time
       if (!goal.isValidStudyTime) {
         return Result.failure(
           ValidationFailure(
@@ -26,12 +27,27 @@ class GoalRepositoryImpl implements GoalRepository {
         );
       }
 
-      final jsonString = jsonEncode(goal.toJson());
-      await _prefs.setString(_goalKey, jsonString);
+      final userId = _userId;
+      if (userId == null) {
+         // Fallback to shared prefs if not logged in
+         await _prefs.setString('learning_goal_preferences', jsonEncode(goal.toJson()));
+         return Result.success(null);
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('preferences')
+          .doc('learning_goal')
+          .set(goal.toJson());
+          
+      // Keep a local copy for immediate syncless access
+      await _prefs.setString('learning_goal_preferences', jsonEncode(goal.toJson()));
+      
       return Result.success(null);
     } catch (e) {
       return Result.failure(
-        CacheFailure(message: 'Failed to save goal preferences: $e'),
+        ServerFailure(message: 'Failed to save goal preferences: $e'),
       );
     }
   }
@@ -39,7 +55,29 @@ class GoalRepositoryImpl implements GoalRepository {
   @override
   Future<Result<LearningGoal?>> getGoalPreferences() async {
     try {
-      final jsonString = _prefs.getString(_goalKey);
+      final userId = _userId;
+      if (userId != null) {
+        try {
+          final doc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .collection('preferences')
+              .doc('learning_goal')
+              .get();
+              
+          if (doc.exists && doc.data() != null) {
+            final goal = LearningGoal.fromJson(doc.data()!);
+            // Update local cache
+            await _prefs.setString('learning_goal_preferences', jsonEncode(goal.toJson()));
+            return Result.success(goal);
+          }
+        } catch (e) {
+           print('Firestore fetch failed, falling back to local cache: $e');
+        }
+      }
+
+      // Fallback to local cache
+      final jsonString = _prefs.getString('learning_goal_preferences');
       if (jsonString == null) {
         return Result.success(null);
       }
@@ -57,11 +95,20 @@ class GoalRepositoryImpl implements GoalRepository {
   @override
   Future<Result<void>> clearGoalPreferences() async {
     try {
-      await _prefs.remove(_goalKey);
+      await _prefs.remove('learning_goal_preferences');
+      final userId = _userId;
+      if (userId != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('preferences')
+            .doc('learning_goal')
+            .delete();
+      }
       return Result.success(null);
     } catch (e) {
       return Result.failure(
-        CacheFailure(message: 'Failed to clear goal preferences: $e'),
+        ServerFailure(message: 'Failed to clear goal preferences: $e'),
       );
     }
   }

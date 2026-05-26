@@ -121,22 +121,23 @@ class Flashcard extends Entity {
   /// Create from JSON
   factory Flashcard.fromJson(Map<String, dynamic> json) {
     return Flashcard(
-      id: json['id'] as String,
-      lessonId: json['lessonId'] as String,
-      frontText: json['frontText'] as String,
-      backText: json['backText'] as String,
-      exampleUsage: (json['exampleUsage'] ?? json['example']) as String,
-      exampleTranslation: json['example_translation'] as String?,
-      phonetic: json['phonetic'] as String?,
-      audioUrl: json['audioUrl'] as String?,
+      id: (json['id'] ?? '').toString(),
+      lessonId: (json['lessonId'] ?? '').toString(),
+      frontText: (json['frontText'] ?? json['word'] ?? '').toString(),
+      backText: (json['backText'] ?? json['translation'] ?? '').toString(),
+      exampleUsage: (json['exampleUsage'] ?? json['example'] ?? '').toString(),
+      exampleTranslation: (json['example_translation'] ?? json['exampleTranslation'])?.toString(),
+      phonetic: json['phonetic']?.toString(),
+      audioUrl: json['audioUrl']?.toString(),
       details: json['details'] as Map<String, dynamic>?,
       userRating: json['userRating'] != null
           ? DifficultyRating.values.firstWhere(
-              (e) => e.name == json['userRating'],
+              (e) => e.name == json['userRating'] || e.name.toLowerCase() == json['userRating'].toString().toLowerCase(),
+              orElse: () => DifficultyRating.medium,
             )
           : null,
       lastReviewed: json['lastReviewed'] != null
-          ? DateTime.parse(json['lastReviewed'] as String)
+          ? DateTime.tryParse(json['lastReviewed'] as String)
           : null,
     );
   }

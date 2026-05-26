@@ -12,6 +12,7 @@ abstract class LessonRemoteDataSource {
     required String topic,
     required String language,
     required String difficulty,
+    String? category,
     double? assessmentScore,
     String? goalType,
     int? dailyStudyMinutes,
@@ -70,6 +71,7 @@ class LessonRemoteDataSourceImpl implements LessonRemoteDataSource {
     required String topic,
     required String language,
     required String difficulty,
+    String? category,
     double? assessmentScore,
     String? goalType,
     int? dailyStudyMinutes,
@@ -81,6 +83,9 @@ class LessonRemoteDataSourceImpl implements LessonRemoteDataSource {
         'language': language,
         'difficulty': difficulty,
       };
+      if (category != null) {
+        postData['category'] = category;
+      }
       if (assessmentScore != null) {
         postData['assessmentScore'] = assessmentScore;
       }

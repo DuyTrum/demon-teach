@@ -16,6 +16,11 @@ import 'package:demon_teach/core/constants/app_constants.dart';
 import 'package:demon_teach/domain/services/speaking_controller.dart';
 import 'package:demon_teach/domain/entities/speaking_exercise.dart';
 import 'package:demon_teach/core/di/injection_container.dart';
+import 'package:demon_teach/domain/entities/flashcard.dart';
+import 'package:demon_teach/presentation/widgets/flashcard_widget.dart';
+import 'dart:ui';
+import 'package:demon_teach/domain/entities/progress.dart';
+import 'package:demon_teach/presentation/providers/progress_provider.dart';
 
 class DailyLessonScreen extends ConsumerStatefulWidget {
   const DailyLessonScreen({super.key});
@@ -41,6 +46,13 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
   late final AudioPlayer _userAudioPlayer;
   late final AudioPlayer _feedbackAudioPlayer;
 
+  // State for learning diversity features
+  int _currentFlashcardIndex = 0;
+  bool _isFlashcardFlipped = false;
+  final Map<int, bool> _readingShowTranslation = {};
+  final Map<String, String> _readingSelectedAnswers = {};
+  final Map<int, TextEditingController> _practiceTextControllers = {};
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +71,9 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
     _userAudioPlayer.dispose();
     _feedbackAudioPlayer.dispose();
     _speakingController.dispose();
+    for (final controller in _practiceTextControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -263,6 +278,8 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
   @override
   Widget build(BuildContext context) {
     final lessonState = ref.watch(lessonProvider);
+    final progressState = ref.watch(progressProvider);
+    final progress = progressState.progress;
 
     return Scaffold(
       backgroundColor: AppTheme.demonBgGradientBot,
@@ -276,6 +293,8 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          if (progress != null) _buildHeartsIndicator(context, progress),
+          const SizedBox(width: 8),
           // Timer display
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
@@ -486,6 +505,8 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
     switch (type) {
       case 'vocabulary':
         return _buildVocabularySection(section);
+      case 'reading':
+        return _buildReadingSection(section);
       case 'practice':
         return _buildPracticeSection(section);
       case 'explanation':
@@ -822,93 +843,160 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
     );
   }
 
-  Widget _buildVocabularySection(Map<String, dynamic> section) {
-    final items = section['items'] as List? ?? [];
+  List<Flashcard> _getFlashcardsForSection(Map<String, dynamic> section, Lesson lesson) {
+    final List<Flashcard> flashcards = [];
+    
+    // Attempt 1: Try reading from lesson.content.content['flashcards']
+    if (lesson.content != null && lesson.content!.content['flashcards'] != null) {
+      final list = lesson.content!.content['flashcards'] as List;
+      for (final item in list) {
+        try {
+          flashcards.add(Flashcard.fromJson(item as Map<String, dynamic>));
+        } catch (e) {
+          debugPrint('Error parsing flashcard from lesson: $e');
+        }
+      }
+    }
+    
+    // Attempt 2: Fallback to section items if empty
+    if (flashcards.isEmpty) {
+      final items = section['items'] as List? ?? [];
+      for (int i = 0; i < items.length; i++) {
+        final item = items[i] as Map<String, dynamic>;
+        flashcards.add(Flashcard(
+          id: '${lesson.metadata.id}_fc_$i',
+          lessonId: lesson.metadata.id,
+          frontText: item['word'] as String? ?? '',
+          backText: item['translation'] as String? ?? '',
+          exampleUsage: (item['example'] ?? item['exampleUsage'] ?? '') as String,
+          exampleTranslation: (item['example_translation'] ?? item['exampleTranslation']) as String?,
+          phonetic: (item['pronunciation'] ?? item['phonetic']) as String?,
+          audioUrl: item['audioUrl'] as String?,
+        ));
+      }
+    }
+    
+    return flashcards;
+  }
 
+  Widget _buildVocabularySection(Map<String, dynamic> section) {
+    final lesson = ref.read(lessonProvider).currentLesson;
+    if (lesson == null) return const SizedBox.shrink();
+    
+    final flashcards = _getFlashcardsForSection(section, lesson);
+    if (flashcards.isEmpty) {
+      return const Center(
+        child: Text('Không có từ vựng nào khả dụng', style: TextStyle(color: Colors.white)),
+      );
+    }
+    
+    if (_currentFlashcardIndex >= flashcards.length) {
+      _currentFlashcardIndex = 0;
+    }
+    
+    final currentCard = flashcards[_currentFlashcardIndex];
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Từ vựng mới',
+          'Từ vựng mới (Flashcards)',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: AppTheme.spacingMd),
-        ...items
-            .map((item) => _buildVocabularyCard(item as Map<String, dynamic>)),
-      ],
-    );
-  }
-
-  Widget _buildVocabularyCard(Map<String, dynamic> item) {
-    final word = item['word'] as String;
-    final languageState = ref.read(languageProvider);
-    final targetLang = languageState.preference?.targetLanguage ?? 'en';
-    
-    var audioUrl = item['audioUrl'] as String?;
-    if (audioUrl != null && audioUrl.startsWith('/')) {
-      audioUrl = '${AppConstants.apiBaseUrl}$audioUrl';
-    } else if (audioUrl == null) {
-      audioUrl = '${AppConstants.apiBaseUrl}/api/tts?text=${Uri.encodeComponent(word)}&language=$targetLang';
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
-      padding: const EdgeInsets.all(AppTheme.spacingMd),
-      decoration: BoxDecoration(
-        color: AppTheme.demonCardDark.withOpacity(0.55),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.demonGlowPurple.withOpacity(0.2),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  word,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.demonGlowPurple,
-                    fontSize: 22,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.volume_up, color: Colors.white70),
-                onPressed: () => _playAudio(audioUrl),
-              ),
-            ],
+        const SizedBox(height: 8),
+        Text(
+          'Chạm vào thẻ để lật xem nghĩa và ví dụ',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppTheme.demonTextMuted,
           ),
-          if (item['pronunciation'] != null && (item['pronunciation'] as String).isNotEmpty) ...[
-            const SizedBox(height: 4),
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _isFlashcardFlipped = !_isFlashcardFlipped;
+            });
+          },
+          child: FlashcardWidget(
+            key: ValueKey('fc_${currentCard.id}_$_isFlashcardFlipped'),
+            flashcard: currentCard,
+            isFlipped: _isFlashcardFlipped,
+          ),
+        ),
+        
+        const SizedBox(height: AppTheme.spacingLg),
+        
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+              onPressed: _currentFlashcardIndex > 0
+                  ? () {
+                      setState(() {
+                        _currentFlashcardIndex--;
+                        _isFlashcardFlipped = false;
+                      });
+                    }
+                  : null,
+              disabledColor: Colors.white24,
+            ),
             Text(
-              '/${item['pronunciation']}/',
+              '${_currentFlashcardIndex + 1} / ${flashcards.length}',
               style: const TextStyle(
-                color: AppTheme.demonTextMuted,
-                fontStyle: FontStyle.italic,
-                fontSize: 14,
+                color: Colors.white70,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+              onPressed: _currentFlashcardIndex < flashcards.length - 1
+                  ? () {
+                      setState(() {
+                        _currentFlashcardIndex++;
+                        _isFlashcardFlipped = false;
+                      });
+                    }
+                  : null,
+              disabledColor: Colors.white24,
             ),
           ],
-          const SizedBox(height: AppTheme.spacingSm),
-          Text(
-            item['translation'] as String,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+        ),
+        
+        const SizedBox(height: AppTheme.spacingMd),
+        
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(flashcards.length, (idx) {
+            final isActive = idx == _currentFlashcardIndex;
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: isActive ? 12 : 8,
+              height: isActive ? 12 : 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive ? AppTheme.demonGlowPurple : Colors.white24,
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.demonGlowPurple.withOpacity(0.5),
+                          blurRadius: 6,
+                          spreadRadius: 1,
+                        )
+                      ]
+                    : null,
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 
@@ -937,9 +1025,13 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
   }
 
   Widget _buildExerciseCard(int number, Map<String, dynamic> exercise) {
+    final type = exercise['type'] as String? ?? 'multiple-choice';
     final selectedAnswer = _practiceSelectedAnswers[number];
     final isAnswered = selectedAnswer != null;
-    final correctAnswer = exercise['correctAnswer'] as String;
+    final correctAnswer = exercise['correctAnswer'] as String? ?? '';
+    final explanation = exercise['explanation'] as String?;
+
+    final isFillInBlank = type == 'fillInBlank' || type == 'fill-in-the-blank';
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
@@ -955,17 +1047,38 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Câu hỏi $number',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.demonGlowPurple,
-              fontSize: 16,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Câu hỏi $number',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.demonGlowPurple,
+                  fontSize: 16,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.demonGlowPurple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.demonGlowPurple.withOpacity(0.3)),
+                ),
+                child: Text(
+                  isFillInBlank ? 'Điền vào chỗ trống' : 'Chọn đáp án đúng',
+                  style: const TextStyle(
+                    color: AppTheme.demonGlowPurple,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppTheme.spacingSm),
           Text(
-            exercise['question'] as String,
+            exercise['question'] as String? ?? '',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -973,7 +1086,461 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
             ),
           ),
           const SizedBox(height: AppTheme.spacingMd),
-          ...(exercise['options'] as List).map((option) {
+          if (isFillInBlank)
+            _buildFillInBlankPracticeInput(number, correctAnswer, isAnswered, explanation)
+          else
+            ..._buildMultipleChoiceOptions(number, exercise['options'] as List? ?? [], correctAnswer, selectedAnswer, isAnswered, explanation),
+            
+          if (isAnswered && explanation != null && explanation.isNotEmpty) ...[
+            const SizedBox(height: AppTheme.spacingMd),
+            const Divider(color: Colors.white24),
+            const SizedBox(height: AppTheme.spacingSm),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, size: 16, color: Colors.orangeAccent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Giải thích: $explanation',
+                    style: const TextStyle(
+                      color: AppTheme.demonTextMuted,
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFillInBlankPracticeInput(int number, String correctAnswer, bool isAnswered, String? explanation) {
+    final controller = _practiceTextControllers.putIfAbsent(
+      number,
+      () => TextEditingController(text: _practiceSelectedAnswers[number] ?? ''),
+    );
+
+    final userAns = _practiceSelectedAnswers[number];
+    final isCorrect = userAns != null && _checkFillInBlankCorrect(userAns, correctAnswer);
+
+    Color? borderColor;
+    Color? backgroundColor;
+    if (isAnswered) {
+      borderColor = isCorrect ? Colors.green : Colors.redAccent;
+      backgroundColor = isCorrect ? Colors.green.withOpacity(0.1) : Colors.redAccent.withOpacity(0.1);
+    } else {
+      borderColor = Colors.white.withOpacity(0.15);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: backgroundColor ?? Colors.black.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: borderColor,
+                    width: 1.5,
+                  ),
+                ),
+                child: TextField(
+                  controller: controller,
+                  enabled: !isAnswered,
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                  cursorColor: AppTheme.demonGlowPurple,
+                  decoration: InputDecoration(
+                    hintText: 'Nhập câu trả lời của bạn...',
+                    hintStyle: const TextStyle(color: AppTheme.demonTextMuted),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                  ),
+                ),
+              ),
+            ),
+            if (!isAnswered) ...[
+              const SizedBox(width: AppTheme.spacingSm),
+              ElevatedButton(
+                onPressed: () {
+                  final text = controller.text.trim();
+                  if (text.isEmpty) return;
+                  
+                  setState(() {
+                    _practiceSelectedAnswers[number] = text;
+                  });
+                  
+                  final correct = _checkFillInBlankCorrect(text, correctAnswer);
+
+                  if (!correct) {
+                    final user = ref.read(authProvider).user;
+                    final targetLang = ref.read(languageProvider).preference?.targetLanguage;
+                    if (user != null && targetLang != null) {
+                      ref.read(progressProvider.notifier).consumeHeart(
+                            userId: user.id,
+                            targetLanguage: targetLang,
+                          ).then((_) {
+                        final currentProgress = ref.read(progressProvider).progress;
+                        if (currentProgress != null && currentProgress.hearts <= 0) {
+                          _handleZeroHearts();
+                        }
+                      });
+                    }
+                  }
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        correct 
+                            ? 'Chính xác! Ngươi thông minh đấy! 😈' 
+                            : 'Sai rồi! Học lại đi đệ tử! 😤',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      backgroundColor: correct ? AppTheme.demonGlowGreen : Colors.redAccent,
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.demonGlowPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Gửi', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ],
+        ),
+        if (isAnswered) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                isCorrect ? Icons.check_circle_rounded : Icons.check_circle_rounded,
+                color: isCorrect ? Colors.greenAccent : Colors.redAccent,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isCorrect 
+                      ? 'Chính xác! Đáp án là: $correctAnswer' 
+                      : 'Sai rồi! Đáp án đúng: $correctAnswer (Bạn nhập: $userAns)',
+                  style: TextStyle(
+                    color: isCorrect ? Colors.greenAccent : Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  bool _checkFillInBlankCorrect(String userAns, String correctAns) {
+    String clean(String s) {
+      return s.trim().toLowerCase()
+          .replaceAll(RegExp(r'[.,\/#!$%\^&\*;:{}=\-_`~()?]/g'), '')
+          .replaceAll(RegExp(r'\s+'), ' ');
+    }
+    return clean(userAns) == clean(correctAns);
+  }
+
+  List<Widget> _buildMultipleChoiceOptions(
+    int number,
+    List options,
+    String correctAnswer,
+    String? selectedAnswer,
+    bool isAnswered,
+    String? explanation,
+  ) {
+    return options.map((option) {
+      final isThisSelected = selectedAnswer == option;
+      final isThisCorrect = option == correctAnswer;
+      
+      Color? backgroundColor;
+      Color? borderColor;
+      Color textColor = Colors.white;
+      BoxShadow? glowShadow;
+
+      if (isAnswered) {
+        if (isThisCorrect) {
+          backgroundColor = Colors.green.withOpacity(0.15);
+          borderColor = Colors.green;
+          textColor = Colors.greenAccent;
+          glowShadow = BoxShadow(color: Colors.green.withOpacity(0.2), blurRadius: 10);
+        } else if (isThisSelected) {
+          backgroundColor = Colors.redAccent.withOpacity(0.15);
+          borderColor = Colors.redAccent;
+          textColor = Colors.redAccent;
+          glowShadow = BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 10);
+        }
+      } else {
+        borderColor = Colors.white.withOpacity(0.15);
+      }
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: backgroundColor ?? Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: borderColor ?? Colors.transparent,
+              width: 1.5,
+            ),
+            boxShadow: glowShadow != null ? [glowShadow] : null,
+          ),
+          child: InkWell(
+            onTap: isAnswered
+                ? null
+                : () {
+                    setState(() {
+                      _practiceSelectedAnswers[number] = option as String;
+                    });
+                    final isCorrect = (option == correctAnswer);
+
+                    if (!isCorrect) {
+                      final user = ref.read(authProvider).user;
+                      final targetLang = ref.read(languageProvider).preference?.targetLanguage;
+                      if (user != null && targetLang != null) {
+                        ref.read(progressProvider.notifier).consumeHeart(
+                              userId: user.id,
+                              targetLanguage: targetLang,
+                            ).then((_) {
+                          final currentProgress = ref.read(progressProvider).progress;
+                          if (currentProgress != null && currentProgress.hearts <= 0) {
+                            _handleZeroHearts();
+                          }
+                        });
+                      }
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isCorrect 
+                              ? 'Chính xác! Ngươi thông minh đấy! 😈' 
+                              : 'Sai rồi! Học lại đi đệ tử! 😤',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        backgroundColor: isCorrect ? AppTheme.demonGlowGreen : Colors.redAccent,
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      option as String,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 15,
+                        fontWeight: isThisSelected || (isAnswered && isThisCorrect) ? FontWeight.bold : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  if (isAnswered && isThisCorrect)
+                    const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 20),
+                  if (isAnswered && isThisSelected && !isThisCorrect)
+                    const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildReadingSection(Map<String, dynamic> section) {
+    final passageText = section['passageText'] as String? ?? '';
+    final translation = section['translation'] as String? ?? '';
+    final questions = section['questions'] as List? ?? [];
+    final sectionIdx = _currentSectionIndex;
+    final showTranslation = _readingShowTranslation[sectionIdx] ?? false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Đọc hiểu đoạn văn',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        
+        Container(
+          padding: const EdgeInsets.all(AppTheme.spacingMd),
+          decoration: BoxDecoration(
+            color: AppTheme.demonCardDark.withOpacity(0.55),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppTheme.demonGlowPurple.withOpacity(0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.menu_book, color: AppTheme.demonGlowPurple),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Đoạn văn / Dialogue',
+                    style: TextStyle(
+                      color: AppTheme.demonGlowPurple,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.spacingMd),
+              SelectableText(
+                passageText,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              
+              if (translation.isNotEmpty) ...[
+                const SizedBox(height: AppTheme.spacingMd),
+                const Divider(color: Colors.white24),
+                const SizedBox(height: AppTheme.spacingSm),
+                
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _readingShowTranslation[sectionIdx] = !showTranslation;
+                    });
+                  },
+                  icon: Icon(
+                    showTranslation ? Icons.visibility_off : Icons.visibility,
+                    color: AppTheme.demonGlowPurple,
+                  ),
+                  label: Text(
+                    showTranslation ? 'Ẩn bản dịch' : 'Hiện bản dịch tiếng Việt',
+                    style: const TextStyle(
+                      color: AppTheme.demonGlowPurple,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                
+                if (showTranslation) ...[
+                  const SizedBox(height: AppTheme.spacingSm),
+                  Container(
+                    padding: const EdgeInsets.all(AppTheme.spacingSm),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      translation,
+                      style: const TextStyle(
+                        color: AppTheme.demonTextLight,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: AppTheme.spacingLg),
+        const Text(
+          'Câu hỏi đọc hiểu',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        
+        ...questions.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final q = entry.value as Map<String, dynamic>;
+          final qId = q['id'] as String? ?? 'rq_$idx';
+          return _buildReadingQuestionCard(idx + 1, q, qId);
+        }),
+      ],
+    );
+  }
+
+  Widget _buildReadingQuestionCard(int number, Map<String, dynamic> q, String qId) {
+    final selectedAnswer = _readingSelectedAnswers[qId];
+    final isAnswered = selectedAnswer != null;
+    final correctAnswer = q['correctAnswer'] as String;
+    final explanation = q['explanation'] as String?;
+    final questionText = q['question'] as String? ?? q['questionText'] as String? ?? '';
+    final options = q['options'] as List? ?? [];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
+      decoration: BoxDecoration(
+        color: AppTheme.demonCardDark.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.08),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Câu hỏi $number',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.demonGlowPurple,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingSm),
+          Text(
+            questionText,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingMd),
+          
+          ...options.map((option) {
             final isThisSelected = selectedAnswer == option;
             final isThisCorrect = option == correctAnswer;
             
@@ -1016,9 +1583,26 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
                       ? null
                       : () {
                           setState(() {
-                            _practiceSelectedAnswers[number] = option as String;
+                            _readingSelectedAnswers[qId] = option as String;
                           });
                           final isCorrect = (option == correctAnswer);
+
+                          if (!isCorrect) {
+                            final user = ref.read(authProvider).user;
+                            final targetLang = ref.read(languageProvider).preference?.targetLanguage;
+                            if (user != null && targetLang != null) {
+                              ref.read(progressProvider.notifier).consumeHeart(
+                                    userId: user.id,
+                                    targetLanguage: targetLang,
+                                  ).then((_) {
+                                final currentProgress = ref.read(progressProvider).progress;
+                                if (currentProgress != null && currentProgress.hearts <= 0) {
+                                  _handleZeroHearts();
+                                }
+                              });
+                            }
+                          }
+
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
@@ -1034,7 +1618,7 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
                         },
                   borderRadius: BorderRadius.circular(12),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
                       children: [
                         Expanded(
@@ -1042,15 +1626,15 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
                             option as String,
                             style: TextStyle(
                               color: textColor,
-                              fontSize: 15,
+                              fontSize: 14,
                               fontWeight: isThisSelected || (isAnswered && isThisCorrect) ? FontWeight.bold : FontWeight.w500,
                             ),
                           ),
                         ),
                         if (isAnswered && isThisCorrect)
-                          const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 20),
+                          const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 18),
                         if (isAnswered && isThisSelected && !isThisCorrect)
-                          const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 20),
+                          const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 18),
                       ],
                     ),
                   ),
@@ -1058,6 +1642,29 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
               ),
             );
           }),
+          
+          if (isAnswered && explanation != null && explanation.isNotEmpty) ...[
+            const SizedBox(height: AppTheme.spacingMd),
+            const Divider(color: Colors.white24),
+            const SizedBox(height: AppTheme.spacingSm),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, size: 16, color: Colors.orangeAccent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Giải thích: $explanation',
+                    style: const TextStyle(
+                      color: AppTheme.demonTextMuted,
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1087,7 +1694,7 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
             ),
           ),
           child: Text(
-            section['content'] as String,
+            section['content'] as String? ?? 'Nội dung đang được cập nhật.',
             style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.4),
           ),
         ),
@@ -1112,7 +1719,8 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
         const SizedBox(height: AppTheme.spacingMd),
         ...items.asMap().entries.map((entry) {
           final index = entry.key;
-          final example = entry.value as String;
+          final example = entry.value as String? ?? '';
+          if (example.isEmpty) return const SizedBox.shrink();
           return Container(
             margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
             padding: const EdgeInsets.all(AppTheme.spacingMd),
@@ -1191,6 +1799,8 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
                 onPressed: () {
                   setState(() {
                     _currentSectionIndex--;
+                    _currentFlashcardIndex = 0;
+                    _isFlashcardFlipped = false;
                   });
                 },
                 isOutlined: true,
@@ -1235,6 +1845,8 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
                 } else {
                   setState(() {
                     _currentSectionIndex++;
+                    _currentFlashcardIndex = 0;
+                    _isFlashcardFlipped = false;
                   });
                 }
               },
@@ -1263,6 +1875,360 @@ class _DailyLessonScreenState extends ConsumerState<DailyLessonScreen> {
           timeSpent: _elapsedSeconds,
         ),
       ),
+    );
+  }
+
+  Widget _buildHeartsIndicator(BuildContext context, Progress progress) {
+    final hasCooldown = progress.hearts < AppConstants.maxHearts;
+    final countdownStr = _formatRemainingTime(progress);
+
+    return GestureDetector(
+      onTap: () => _showHeartsRefillDialog(context, progress),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF1744).withOpacity(0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFFF1744).withOpacity(0.4),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF1744).withOpacity(0.15),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.favorite,
+              color: Color(0xFFFF1744),
+              size: 20,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '${progress.hearts}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            if (hasCooldown && countdownStr.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Text(
+                countdownStr,
+                style: const TextStyle(
+                  color: Color(0xFFFF1744),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatRemainingTime(Progress progress) {
+    if (progress.hearts >= AppConstants.maxHearts) return '';
+    final nextHeartTime = progress.lastHeartRegenTime.add(AppConstants.heartRegenInterval);
+    final remaining = nextHeartTime.difference(DateTime.now());
+    if (remaining.isNegative) return '00:00';
+    final minutes = remaining.inMinutes.toString().padLeft(2, '0');
+    final seconds = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  void _showHeartsRefillDialog(BuildContext context, Progress progress) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final progressState = ref.watch(progressProvider);
+            final currentProgress = progressState.progress ?? progress;
+            final isFull = currentProgress.hearts >= AppConstants.maxHearts;
+            final hasEnoughSouls = currentProgress.souls >= 50;
+            final isUpdating = progressState.isUpdating;
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A0A2E).withOpacity(0.92),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: const Color(0xFFFF1744).withOpacity(0.4),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF1744).withOpacity(0.15),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          '🔮 HỒI PHỤC TIM MA PHÁP',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(AppConstants.maxHearts, (index) {
+                            final isFilled = index < currentProgress.hearts;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Icon(
+                                Icons.favorite,
+                                color: isFilled ? const Color(0xFFFF1744) : Colors.white24,
+                                size: 28,
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 16),
+                        if (isFull) ...[
+                          const Text(
+                            'Tim Ma Pháp của ngươi đã đầy tràn ma lực!',
+                            style: TextStyle(color: Colors.greenAccent, fontSize: 14),
+                            textAlign: TextAlign.center,
+                          ),
+                        ] else ...[
+                          Text(
+                            'Tim sẽ tự động hồi phục sau mỗi ${_formatInterval(AppConstants.heartRegenInterval)}.\nHoặc ngươi có thể dùng Linh Hồn để đổi lấy Tim ngay lập tức!',
+                            style: const TextStyle(color: Color(0xFF8A7DA0), fontSize: 13),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Tài sản: 👻 ${currentProgress.souls} Linh Hồn',
+                                style: TextStyle(
+                                  color: hasEnoughSouls ? Colors.greenAccent : Colors.redAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomButton(
+                                text: 'Đóng',
+                                isOutlined: true,
+                                onPressed: () => Navigator.pop(dialogContext),
+                              ),
+                            ),
+                            if (!isFull) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: CustomButton(
+                                  text: 'Hồi phục 1 Tim (-50 Linh Hồn)',
+                                  isLoading: isUpdating,
+                                  onPressed: (!hasEnoughSouls || isUpdating)
+                                      ? null
+                                      : () async {
+                                          final success = await ref
+                                              .read(progressProvider.notifier)
+                                              .refillHeartWithSouls(
+                                                userId: currentProgress.userId,
+                                                targetLanguage: currentProgress.targetLanguage,
+                                              );
+                                          if (success && context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Hồi phục Tim thành công! 💖 Ma lực đã gia tăng.',
+                                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                                ),
+                                                backgroundColor: Color(0xFF43A047),
+                                              ),
+                                            );
+                                          } else if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Hồi phục thất bại!'),
+                                                backgroundColor: Colors.redAccent,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _formatInterval(Duration duration) {
+    if (duration.inMinutes > 0) {
+      return '${duration.inMinutes} phút';
+    }
+    return '${duration.inSeconds} giây';
+  }
+
+  void _handleZeroHearts() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final progressState = ref.watch(progressProvider);
+            final currentProgress = progressState.progress;
+            final hasEnoughSouls = currentProgress != null && currentProgress.souls >= 50;
+            final isUpdating = progressState.isUpdating;
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A0A2E).withOpacity(0.92),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: Colors.redAccent.withOpacity(0.4),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.redAccent.withOpacity(0.15),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          '💀 HẾT TIM MA PHÁP!',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          '😈 Ngươi đã kiệt sức và không còn Tim Ma Pháp để tiếp tục nghi thức học tập này! Khế ước yêu cầu ít nhất 1 Tim.',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                        if (currentProgress != null)
+                          Text(
+                            'Tài sản: 👻 ${currentProgress.souls} Linh Hồn',
+                            style: TextStyle(
+                              color: hasEnoughSouls ? Colors.greenAccent : Colors.redAccent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomButton(
+                                text: 'Thoát bài học',
+                                isOutlined: true,
+                                onPressed: () {
+                                  Navigator.pop(dialogContext); // Close dialog
+                                  Navigator.pop(context); // Exit lesson screen
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: CustomButton(
+                                text: 'Đổi 50 Linh Hồn lấy 1 Tim',
+                                isLoading: isUpdating,
+                                onPressed: (!hasEnoughSouls || isUpdating)
+                                    ? null
+                                    : () async {
+                                        final success = await ref
+                                            .read(progressProvider.notifier)
+                                            .refillHeartWithSouls(
+                                              userId: currentProgress!.userId,
+                                              targetLanguage: currentProgress.targetLanguage,
+                                            );
+                                        if (success && context.mounted) {
+                                          Navigator.pop(dialogContext); // Close zero hearts dialog and continue
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Hồi phục Tim thành công! 💖 Ngươi có thể tiếp tục.',
+                                                style: TextStyle(fontWeight: FontWeight.bold),
+                                              ),
+                                              backgroundColor: Color(0xFF43A047),
+                                            ),
+                                          );
+                                        } else if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Hồi phục thất bại!'),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                        }
+                                      },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

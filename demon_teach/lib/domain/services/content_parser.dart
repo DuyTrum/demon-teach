@@ -81,15 +81,22 @@ class LessonContent {
 
   /// Create from JSON
   factory LessonContent.fromJson(Map<String, dynamic> json) {
+    final rawFlashcards = json['flashcards'] ?? [];
+    final List<Flashcard> resolvedFlashcards = rawFlashcards is List
+        ? rawFlashcards.map((f) => Flashcard.fromJson(f as Map<String, dynamic>)).toList()
+        : [];
+
+    final rawQuiz = json['quiz'] is Map<String, dynamic>
+        ? Quiz.fromJson(json['quiz'] as Map<String, dynamic>)
+        : Quiz(id: '', lessonId: '', title: '', questions: []);
+
     return LessonContent(
-      flashcards: (json['flashcards'] as List)
-          .map((f) => Flashcard.fromJson(f as Map<String, dynamic>))
-          .toList(),
+      flashcards: resolvedFlashcards,
       listeningExercise: json['listeningExercise'] != null
           ? ListeningExercise.fromJson(
               json['listeningExercise'] as Map<String, dynamic>)
           : null,
-      quiz: Quiz.fromJson(json['quiz'] as Map<String, dynamic>),
+      quiz: rawQuiz,
       speakingExercise: json['speakingExercise'] != null
           ? SpeakingExercise.fromJson(
               json['speakingExercise'] as Map<String, dynamic>)
@@ -260,13 +267,14 @@ class ContentParser {
       Map<String, dynamic> fc, int index, List<String> errors) {
     final requiredFields = [
       'id',
-      'lessonId',
       'frontText',
       'backText',
-      'exampleUsage'
     ];
     for (final field in requiredFields) {
       if (!fc.containsKey(field)) {
+        // Fallback checks
+        if (field == 'frontText' && fc.containsKey('word')) continue;
+        if (field == 'backText' && fc.containsKey('translation')) continue;
         errors.add('flashcards[$index]: missing required field "$field"');
       } else if (fc[field] is! String) {
         errors.add('flashcards[$index]: field "$field" must be a string');

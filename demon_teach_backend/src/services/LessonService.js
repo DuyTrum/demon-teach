@@ -137,11 +137,14 @@ class LessonService {
           // Add to flashcards
           flashcards.push({
             id: vocab.id,
+            lessonId: lessonId,
             frontText: vocab.word,
             backText: vocab.meanings[0].definition,
             phonetic: vocab.phonetic,
-            example: vocab.meanings[0].example,
-            example_translation: vocab.meanings[0].example_translation,
+            exampleUsage: vocab.meanings[0].example || '',
+            exampleTranslation: vocab.meanings[0].example_translation || '',
+            example: vocab.meanings[0].example || '',
+            example_translation: vocab.meanings[0].example_translation || '',
             audioUrl: (() => {
               try { return TtsService.getAudioUrl(vocab.word, language); }
               catch (e) { return null; }
@@ -150,7 +153,7 @@ class LessonService {
 
           // Generate exercises for this word
           try {
-            const exercises = await AiService.generateExercises(vocab, 1, goalType);
+            const exercises = await AiService.generateExercises(vocab, 2, goalType);
             allExercises.push(...exercises.map(e => ({
               id: e.id,
               type: e.type,
@@ -223,7 +226,138 @@ class LessonService {
         console.error('Failed to generate listening scenario:', listeningError.message);
       }
 
+      // 2.8 Generate reading passage and questions for this topic using AI
+      let readingData = null;
+      try {
+        const readingPrompt = `Create a short reading passage or dialogue in ${language} for the topic "${topic}" at ${difficulty} level.
+        It must contain:
+        1. "passageText": A short article, story, or dialogue (in the target language) that the student will read (around 50-150 words).
+        2. "translation": A Vietnamese translation of the passage.
+        3. "questions": A JSON array of 3 multiple-choice comprehension questions about this passage.
+        For each question, provide:
+        - "questionText": The question text.
+        - "options": An array of 4 options.
+        - "correctAnswer": The correct option exactly as written in options.
+        - "explanation": Explanation of the correct answer in Vietnamese.
+
+        Return ONLY a JSON object:
+        {
+          "passageText": "...",
+          "translation": "...",
+          "questions": [
+            {
+              "questionText": "...",
+              "options": ["...", "...", "...", "..."],
+              "correctAnswer": "...",
+              "explanation": "..."
+            }
+          ]
+        }`;
+        console.log(`📖 Generating reading passage for topic "${topic}"...`);
+        const readingRaw = await AiService._callAi(readingPrompt);
+        const parsedReading = JSON.parse(readingRaw);
+        if (parsedReading && parsedReading.passageText && Array.isArray(parsedReading.questions)) {
+          readingData = parsedReading;
+        }
+      } catch (readingError) {
+        console.error('Failed to generate reading scenario:', readingError.message);
+      }
+
+      // 2.9 Generate grammar explanation + examples when category is 'grammar'
+      let grammarExplanation = null;
+      let grammarExamples = null;
+      if (category === 'grammar') {
+        try {
+          const grammarPrompt = `You are an expert ${language} language teacher. Create a detailed grammar explanation for the topic "${topic}" at ${difficulty} level.
+          
+          Return ONLY a JSON object with:
+          1. "explanation": A detailed grammar explanation in Vietnamese (300-500 characters). Explain the grammar rule, when to use it, and common mistakes to avoid. Use clear formatting with bullet points or numbered lists.
+          2. "examples": An array of exactly 3 example sentences, each as a string combining the target language sentence and its Vietnamese translation, formatted as: "Target sentence — Dịch nghĩa tiếng Việt"
+          
+          {
+            "explanation": "...",
+            "examples": ["Example 1 — Translation 1", "Example 2 — Translation 2", "Example 3 — Translation 3"]
+          }`;
+          console.log(`📝 Generating grammar explanation for topic "${topic}"...`);
+          const grammarRaw = await AiService._callAi(grammarPrompt);
+          const parsedGrammar = JSON.parse(grammarRaw);
+          if (parsedGrammar && parsedGrammar.explanation) {
+            grammarExplanation = parsedGrammar.explanation;
+            grammarExamples = parsedGrammar.examples || [];
+          }
+        } catch (grammarError) {
+          console.error('Failed to generate grammar explanation:', grammarError.message);
+        }
+      }
+
       // 3. Assemble the Lesson
+      const sections = [
+        {
+          type: 'vocabulary',
+          items: flashcards.map(fc => ({
+            word: fc.frontText,
+            translation: fc.backText,
+            pronunciation: fc.phonetic || '',
+            audioUrl: fc.audioUrl
+          }))
+        }
+      ];
+
+      if (readingData) {
+        sections.push({
+          type: 'reading',
+          passageText: readingData.passageText,
+          translation: readingData.translation,
+          questions: readingData.questions.map((q, idx) => ({
+            id: `rq_${idx}_${Date.now()}`,
+            question: q.questionText,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation
+          }))
+        });
+      }
+
+      // Add grammar explanation section if available
+      if (grammarExplanation) {
+        sections.push({
+          type: 'explanation',
+          content: grammarExplanation
+        });
+      }
+
+      // Add grammar examples section if available
+      if (grammarExamples && grammarExamples.length > 0) {
+        sections.push({
+          type: 'examples',
+          items: grammarExamples
+        });
+      }
+
+      sections.push({
+        type: 'practice',
+        exercises: allExercises.map(ex => ({
+          type: ex.type || 'multiple-choice',
+          question: ex.content.questionText,
+          options: ex.content.options || [],
+          correctAnswer: ex.content.correctAnswer,
+          explanation: ex.content.explanation || ''
+        }))
+      });
+
+      sections.push({
+        type: 'speaking',
+        items: speakingItems.map(item => ({
+          phrase: item.phrase,
+          translation: item.translation,
+          pronunciation: item.pronunciation || '',
+          audioUrl: (() => {
+            try { return TtsService.getAudioUrl(item.phrase, language); }
+            catch (e) { return null; }
+          })()
+        }))
+      });
+
       const lessonContent = {
         flashcards: flashcards,
         quiz: {
@@ -247,37 +381,7 @@ class LessonService {
             explanation: q.explanation
           }))
         } : null,
-        sections: [
-          {
-            type: 'vocabulary',
-            items: flashcards.map(fc => ({
-              word: fc.frontText,
-              translation: fc.backText,
-              pronunciation: fc.phonetic || '',
-              audioUrl: fc.audioUrl
-            }))
-          },
-          {
-            type: 'practice',
-            exercises: allExercises.map(ex => ({
-              question: ex.content.questionText,
-              options: ex.content.options || [],
-              correctAnswer: ex.content.correctAnswer
-            }))
-          },
-          {
-            type: 'speaking',
-            items: speakingItems.map(item => ({
-              phrase: item.phrase,
-              translation: item.translation,
-              pronunciation: item.pronunciation || '',
-              audioUrl: (() => {
-                try { return TtsService.getAudioUrl(item.phrase, language); }
-                catch (e) { return null; }
-              })()
-            }))
-          }
-        ]
+        sections: sections
       };
 
       const lessonData = {

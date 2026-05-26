@@ -64,15 +64,32 @@ class QuizQuestion extends Entity {
 
   /// Create from JSON
   factory QuizQuestion.fromJson(Map<String, dynamic> json) {
+    final content = json['content'] is Map<String, dynamic>
+        ? json['content'] as Map<String, dynamic>
+        : json;
+
+    final typeStr = (json['type'] ?? '').toString().replaceAll('-', '').toLowerCase();
+    QuestionType resolvedType = QuestionType.multipleChoice;
+    for (final val in QuestionType.values) {
+      if (val.name.toLowerCase() == typeStr ||
+          val.name.replaceAll('-', '').toLowerCase() == typeStr) {
+        resolvedType = val;
+        break;
+      }
+    }
+
+    final rawOptions = content['options'] ?? content['choices'] ?? [];
+    final List<String> resolvedOptions = rawOptions is List
+        ? rawOptions.map((o) => o.toString()).toList()
+        : [];
+
     return QuizQuestion(
-      id: json['id'] as String,
-      type: QuestionType.values.firstWhere(
-        (e) => e.name == json['type'],
-      ),
-      questionText: json['questionText'] as String,
-      options: List<String>.from(json['options'] as List),
-      correctAnswer: json['correctAnswer'] as String,
-      explanation: json['explanation'] as String,
+      id: (json['id'] ?? '').toString(),
+      type: resolvedType,
+      questionText: (content['questionText'] ?? content['question'] ?? '').toString(),
+      options: resolvedOptions,
+      correctAnswer: (content['correctAnswer'] ?? content['answer'] ?? '').toString(),
+      explanation: (content['explanation'] ?? '').toString(),
       points: json['points'] as int? ?? 10,
     );
   }
@@ -122,13 +139,16 @@ class Quiz extends Entity {
 
   /// Create from JSON
   factory Quiz.fromJson(Map<String, dynamic> json) {
+    final rawQuestions = json['questions'] ?? [];
+    final List<QuizQuestion> resolvedQuestions = rawQuestions is List
+        ? rawQuestions.map((q) => QuizQuestion.fromJson(q as Map<String, dynamic>)).toList()
+        : [];
+
     return Quiz(
-      id: json['id'] as String,
-      lessonId: json['lessonId'] as String,
-      title: json['title'] as String,
-      questions: (json['questions'] as List)
-          .map((q) => QuizQuestion.fromJson(q as Map<String, dynamic>))
-          .toList(),
+      id: (json['id'] ?? '').toString(),
+      lessonId: (json['lessonId'] ?? '').toString(),
+      title: (json['title'] ?? '').toString(),
+      questions: resolvedQuestions,
       passingScore: json['passingScore'] as int? ?? 60,
     );
   }

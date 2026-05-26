@@ -113,4 +113,36 @@ class ProgressTracker {
     if (totalLessons == 0) return 0.0;
     return (lessonsCompleted / totalLessons).clamp(0.0, 1.0);
   }
+
+  /// Check and regenerate hearts based on time difference.
+  /// 1 Heart regenerated every heartRegenInterval (e.g. 30 mins), capped at maxHearts (5).
+  Progress checkAndRegenerateHearts(Progress progress) {
+    final now = DateTime.now();
+
+    // If hearts are full, reset regen timer to now
+    if (progress.hearts >= AppConstants.maxHearts) {
+      return progress.copyWith(lastHeartRegenTime: now);
+    }
+
+    // Handle anti-cheat: if the system clock was rolled back
+    if (now.isBefore(progress.lastHeartRegenTime)) {
+      return progress.copyWith(lastHeartRegenTime: now);
+    }
+
+    final interval = AppConstants.heartRegenInterval;
+    final difference = now.difference(progress.lastHeartRegenTime);
+    final heartsToRegen = difference.inSeconds ~/ interval.inSeconds;
+
+    if (heartsToRegen > 0) {
+      final newHearts = (progress.hearts + heartsToRegen).clamp(0, AppConstants.maxHearts);
+      final newRegenTime = progress.lastHeartRegenTime.add(interval * heartsToRegen);
+      return progress.copyWith(
+        hearts: newHearts,
+        lastHeartRegenTime: newHearts == AppConstants.maxHearts ? now : newRegenTime,
+        updatedAt: now,
+      );
+    }
+
+    return progress;
+  }
 }

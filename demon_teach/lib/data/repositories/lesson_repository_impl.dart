@@ -343,6 +343,7 @@ class LessonRepositoryImpl implements LessonRepository {
     required String topic,
     required String language,
     required String difficulty,
+    String? category,
     double? assessmentScore,
     String? goalType,
     int? dailyStudyMinutes,
@@ -353,6 +354,7 @@ class LessonRepositoryImpl implements LessonRepository {
         topic: topic,
         language: language,
         difficulty: difficulty,
+        category: category,
         assessmentScore: assessmentScore,
         goalType: goalType,
         dailyStudyMinutes: dailyStudyMinutes,
@@ -383,16 +385,21 @@ class LessonRepositoryImpl implements LessonRepository {
 
   Future<Result<Lesson>> _generateLessonByAi(String lessonId) async {
     // Parse target language, difficulty, and determine topic from lessonId
-    // Suffix format: {language}_{difficulty}_{category}_{number}
-    // Example: en_basic_vocab_003
+    // Format: {language}_{difficulty}_{category}_{number}_{userId}
+    // Example: en_beginner_vocabulary_001_abc123
+    // The userId suffix is stripped before parsing the core lesson structure.
     final parts = lessonId.split('_');
     if (parts.length < 3) {
       return Result.failure(const ServerFailure(message: 'Invalid lesson ID format for generation'));
     }
 
     final langCode = parts[0];
-    final difficultyStr = parts[1]; // basic, intermediate, advanced
-    final categoryStr = parts[2]; // vocab, grammar, listening, speaking
+    final difficultyStr = parts[1]; // beginner, intermediate, advanced
+    // Normalize 'vocabulary' -> 'vocab' so topicKey mapping works correctly
+    String categoryStr = parts[2]; // vocabulary, vocab, grammar, listening, speaking, reading
+    if (categoryStr == 'vocabulary') {
+      categoryStr = 'vocab';
+    }
     final numberStr = parts.length > 3 ? parts[3] : '001';
 
     // Map difficultyStr to backend ENUM: 'basic', 'intermediate', 'advanced'
@@ -412,7 +419,20 @@ class LessonRepositoryImpl implements LessonRepository {
       if (resultString != null) {
         try {
           final resultJson = jsonDecode(resultString) as Map<String, dynamic>;
-          assessmentScore = (resultJson['score'] as num?)?.toDouble();
+          final savedLevel = resultJson['proficiencyLevel'] as String?;
+          final score = (resultJson['score'] as num?)?.toDouble();
+          
+          // The lesson ID reflects the CURRENT desired difficulty (from user's goal path).
+          // If the user manually changed their difficulty, it won't match their original assessment level.
+          // We only apply the assessment score if it aligns with their current path level.
+          String impliedLevel = 'beginner'; 
+          if (savedLevel == 'basic') impliedLevel = 'beginner';
+          else if (savedLevel == 'intermediate') impliedLevel = 'intermediate';
+          else if (savedLevel == 'advanced') impliedLevel = 'advanced';
+          
+          if (impliedLevel == difficultyStr) {
+            assessmentScore = score;
+          }
         } catch (e) {
           print('Error parsing assessment score: $e');
         }
@@ -597,6 +617,7 @@ class LessonRepositoryImpl implements LessonRepository {
       topic: topic,
       language: langCode,
       difficulty: difficulty,
+      category: categoryStr,
       assessmentScore: assessmentScore,
       goalType: goalType,
       dailyStudyMinutes: dailyStudyMinutes,

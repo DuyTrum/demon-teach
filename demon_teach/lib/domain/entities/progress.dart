@@ -11,6 +11,9 @@ class Progress extends Entity {
   final DateTime? lastLessonDate;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final int hearts;
+  final DateTime lastHeartRegenTime;
+  final int souls;
 
   const Progress({
     required this.userId,
@@ -22,6 +25,9 @@ class Progress extends Entity {
     this.lastLessonDate,
     required this.createdAt,
     required this.updatedAt,
+    required this.hearts,
+    required this.lastHeartRegenTime,
+    required this.souls,
   });
 
   /// Calculate level based on XP (every 100 XP = 1 level)
@@ -44,6 +50,9 @@ class Progress extends Entity {
         lastLessonDate,
         createdAt,
         updatedAt,
+        hearts,
+        lastHeartRegenTime,
+        souls,
       ];
 
   /// Create a copy with updated fields
@@ -57,6 +66,9 @@ class Progress extends Entity {
     DateTime? lastLessonDate,
     DateTime? createdAt,
     DateTime? updatedAt,
+    int? hearts,
+    DateTime? lastHeartRegenTime,
+    int? souls,
   }) {
     return Progress(
       userId: userId ?? this.userId,
@@ -68,6 +80,9 @@ class Progress extends Entity {
       lastLessonDate: lastLessonDate ?? this.lastLessonDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      hearts: hearts ?? this.hearts,
+      lastHeartRegenTime: lastHeartRegenTime ?? this.lastHeartRegenTime,
+      souls: souls ?? this.souls,
     );
   }
 
@@ -83,6 +98,9 @@ class Progress extends Entity {
       'lastLessonDate': lastLessonDate?.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'hearts': hearts,
+      'lastHeartRegenTime': lastHeartRegenTime.toIso8601String(),
+      'souls': souls,
     };
   }
 
@@ -100,6 +118,13 @@ class Progress extends Entity {
           : null,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+      hearts: json['hearts'] as int? ?? 5,
+      lastHeartRegenTime: json['lastHeartRegenTime'] != null
+          ? DateTime.parse(json['lastHeartRegenTime'] as String)
+          : (json['updatedAt'] != null
+              ? DateTime.parse(json['updatedAt'] as String)
+              : DateTime.now()),
+      souls: json['souls'] as int? ?? 0,
     );
   }
 
@@ -119,6 +144,9 @@ class Progress extends Entity {
       lastLessonDate: null,
       createdAt: now,
       updatedAt: now,
+      hearts: 5,
+      lastHeartRegenTime: now,
+      souls: 0,
     );
   }
 }

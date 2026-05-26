@@ -260,6 +260,9 @@ class SyncLocalDataSourceDrift implements SyncLocalDataSource {
       lastLessonDate: progress.lastLessonDate,
       createdAt: progress.createdAt,
       updatedAt: progress.updatedAt,
+      hearts: 5,
+      lastHeartRegenTime: progress.updatedAt,
+      souls: 0,
     );
   }
 

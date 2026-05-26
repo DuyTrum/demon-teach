@@ -50,6 +50,8 @@ import 'package:demon_teach/data/datasources/remote/sync_remote_datasource.dart'
 import 'package:demon_teach/data/repositories/sync_repository_impl.dart';
 import 'package:demon_teach/domain/services/sync_manager.dart';
 import 'package:demon_teach/presentation/providers/sync_provider.dart';
+import 'package:demon_teach/data/repositories/leaderboard_repository_impl.dart';
+import 'package:demon_teach/presentation/providers/leaderboard_provider.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -74,6 +76,20 @@ void main() async {
   // Initialize SharedPreferences and Secure Storage
   final sharedPreferences = await SharedPreferences.getInstance();
   const secureStorage = FlutterSecureStorage();
+
+  // Clear all old cache/mock data once for the new unified db version
+  const String cleanDbVersionKey = 'clean_db_v5_completed';
+  if (!sharedPreferences.containsKey(cleanDbVersionKey)) {
+    await sharedPreferences.clear();
+    try {
+      await secureStorage.deleteAll();
+    } catch (e) {
+      // Secure storage might fail on some platforms if empty
+    }
+    await sharedPreferences.setBool(cleanDbVersionKey, true);
+    print('🧹 Cleared all local SharedPreferences and Secure Storage for clean database sync!');
+  }
+
 
   // Initialize Dio
   final dio = Dio(BaseOptions(
@@ -126,6 +142,7 @@ void main() async {
     remoteDataSource: syncRemoteDataSource,
   );
   final syncManager = SyncManager(syncRepository);
+  final leaderboardRepository = LeaderboardRepositoryImpl();
 
   runApp(
     ProviderScope(
@@ -183,6 +200,8 @@ void main() async {
         syncRepositoryProvider.overrideWithValue(syncRepository),
         // Override SyncManager provider
         syncManagerProvider.overrideWithValue(syncManager),
+        // Override LeaderboardRepository provider
+        leaderboardRepositoryProvider.overrideWithValue(leaderboardRepository),
       ],
       child: const DemonTeachApp(),
     ),

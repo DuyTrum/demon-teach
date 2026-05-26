@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { Exercise } = require('../models');
+const { Exercise, Vocabulary } = require('../models');
 const { EdgeTTS } = require('node-edge-tts');
 const path = require('path');
 const fs = require('fs');
@@ -60,17 +60,32 @@ class AiService {
     }
 
     const prompt = `
-      Create ${count} different exercises for the ${vocabulary.language} word "${vocabulary.word}".
+      Create exactly ${count} different exercises for the ${vocabulary.language} word "${vocabulary.word}".
       Word meaning: ${JSON.stringify(vocabulary.meanings[0])}
       
       ${goalPrompt}
+      CRITICAL RULES:
+      - You MUST create exactly 1 exercise of type "multipleChoice" and 1 exercise of type "fillInBlank".
+      - For "multipleChoice": provide "options" (array of 4 strings) and "correctAnswer" (must match one option exactly).
+      - For "fillInBlank": provide "questionText" as a sentence with a blank (use "______" for the blank), "correctAnswer" as the missing word/phrase, and NO "options" field.
+      - All questionTexts and explanations should be in Vietnamese.
+      - All correctAnswers and options should be in the target language (${vocabulary.language}).
+      
       Return ONLY a JSON array of objects:
       [
         {
-          "type": "multipleChoice", // or "fillInBlank"
+          "type": "multipleChoice",
           "content": {
             "questionText": "...",
-            "options": ["...", "...", "...", "..."], // If multipleChoice
+            "options": ["...", "...", "...", "..."],
+            "correctAnswer": "...",
+            "explanation": "..."
+          }
+        },
+        {
+          "type": "fillInBlank",
+          "content": {
+            "questionText": "Điền từ thích hợp: '... ______ ...'",
             "correctAnswer": "...",
             "explanation": "..."
           }
@@ -84,6 +99,50 @@ class AiService {
       const exercisesData = Array.isArray(data) ? data : (data.exercises || data.result || Object.values(data)[0]);
       
       if (!Array.isArray(exercisesData)) return [];
+
+      // Ensure the vocabulary exists in the SQLite database first to satisfy the foreign key constraint
+      try {
+        await Vocabulary.findOrCreate({
+          where: { word: vocabulary.word, language: vocabulary.language },
+          defaults: {
+            id: vocabulary.id,
+            word: vocabulary.word,
+            language: vocabulary.language,
+            level: vocabulary.level || 'basic',
+            phonetic: vocabulary.phonetic || '',
+            details: vocabulary.details || {},
+            meanings: vocabulary.meanings || [],
+            source: vocabulary.source || 'ai_discovery'
+          }
+        });
+      } catch (dbErr) {
+        console.error('Error ensuring vocabulary in SQLite local DB:', dbErr.message);
+        // If findOrCreate failed due to UUID validation of vocabulary.id (e.g. vocab_xxx is not a valid UUID),
+        // we generate a valid UUID for it and try inserting again.
+        if (dbErr.message.toLowerCase().includes('uuid') || dbErr.message.toLowerCase().includes('validation')) {
+          try {
+            const crypto = require('crypto');
+            const validUuid = crypto.randomUUID();
+            vocabulary.id = validUuid; // update in memory so the exercise will use the valid UUID
+            
+            await Vocabulary.findOrCreate({
+              where: { word: vocabulary.word, language: vocabulary.language },
+              defaults: {
+                id: validUuid,
+                word: vocabulary.word,
+                language: vocabulary.language,
+                level: vocabulary.level || 'basic',
+                phonetic: vocabulary.phonetic || '',
+                details: vocabulary.details || {},
+                meanings: vocabulary.meanings || [],
+                source: vocabulary.source || 'ai_discovery'
+              }
+            });
+          } catch (retryErr) {
+            console.error('Retry failed ensuring vocabulary in SQLite local DB:', retryErr.message);
+          }
+        }
+      }
 
       const createdExercises = await Promise.all(exercisesData.map(async (ex) => {
         return await Exercise.create({

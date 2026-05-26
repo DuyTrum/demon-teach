@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:demon_teach/core/constants/app_constants.dart';
 import 'package:demon_teach/domain/entities/progress.dart';
 import 'package:demon_teach/domain/repositories/progress_repository.dart';
 import 'package:demon_teach/domain/usecases/progress/get_progress.dart';
@@ -52,11 +54,41 @@ class ProgressState {
 class ProgressNotifier extends StateNotifier<ProgressState> {
   final GetProgress _getProgress;
   final UpdateProgress _updateProgress;
+  final ProgressRepository _repository;
+  Timer? _regenTimer;
 
   ProgressNotifier(
     this._getProgress,
     this._updateProgress,
-  ) : super(const ProgressState());
+    this._repository,
+  ) : super(const ProgressState()) {
+    // Start periodic heart check timer every 10 seconds
+    _regenTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _checkLocalHeartRegen();
+    });
+  }
+
+  @override
+  void dispose() {
+    _regenTimer?.cancel();
+    super.dispose();
+  }
+
+  void _checkLocalHeartRegen() {
+    final progress = state.progress;
+    if (progress == null || progress.hearts >= AppConstants.maxHearts) return;
+
+    final now = DateTime.now();
+    if (now.isBefore(progress.lastHeartRegenTime)) return;
+
+    final interval = AppConstants.heartRegenInterval;
+    final difference = now.difference(progress.lastHeartRegenTime);
+    final heartsToRegen = difference.inSeconds ~/ interval.inSeconds;
+
+    if (heartsToRegen > 0) {
+      refresh(userId: progress.userId, targetLanguage: progress.targetLanguage);
+    }
+  }
 
   /// Load progress for user and target language
   Future<void> loadProgress({
@@ -116,6 +148,53 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     );
   }
 
+  /// Consume 1 heart (called when incorrect final submission is made)
+  Future<void> consumeHeart({
+    required String userId,
+    required String targetLanguage,
+  }) async {
+    final progress = state.progress;
+    if (progress == null || progress.hearts <= 0) return;
+
+    final result = await _repository.consumeHeart(userId, targetLanguage);
+
+    result.when(
+      success: (updatedProgress) {
+        state = state.copyWith(progress: updatedProgress);
+      },
+      failure: (failure) {
+        state = state.copyWith(error: failure.message);
+      },
+    );
+  }
+
+  /// Refill 1 heart using 100 souls
+  Future<bool> refillHeartWithSouls({
+    required String userId,
+    required String targetLanguage,
+  }) async {
+    state = state.copyWith(isUpdating: true);
+
+    final result = await _repository.refillHeartWithSouls(userId, targetLanguage);
+
+    return result.when(
+      success: (updatedProgress) {
+        state = ProgressState(
+          progress: updatedProgress,
+          isUpdating: false,
+        );
+        return true;
+      },
+      failure: (failure) {
+        state = state.copyWith(
+          isUpdating: false,
+          error: failure.message,
+        );
+        return false;
+      },
+    );
+  }
+
   /// Refresh progress
   Future<void> refresh({
     required String userId,
@@ -131,5 +210,6 @@ final progressProvider =
   return ProgressNotifier(
     ref.watch(getProgressProvider),
     ref.watch(updateProgressProvider),
+    ref.watch(progressRepositoryProvider),
   );
 });

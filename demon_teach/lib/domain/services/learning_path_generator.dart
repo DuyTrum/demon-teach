@@ -28,6 +28,7 @@ class LearningPathGenerator {
       targetLanguage: targetLanguage,
       proficiencyLevel: proficiencyLevel,
       goalType: goalType,
+      userId: userId,
     );
 
     return LearningPath(
@@ -60,6 +61,7 @@ class LearningPathGenerator {
       targetLanguage: currentPath.targetLanguage,
       proficiencyLevel: proficiencyLevel,
       goalType: goalType,
+      userId: currentPath.userId,
     );
 
     // Keep completed lessons (up to current index)
@@ -81,11 +83,13 @@ class LearningPathGenerator {
   }
 
   /// Select lessons based on proficiency level and goal type
+  /// Appends _${userId} to each lesson ID to ensure personalized AI generation
   List<String> _selectLessons({
     required List<Lesson> availableLessons,
     required String targetLanguage,
     required ProficiencyLevel proficiencyLevel,
     required GoalType goalType,
+    required String userId,
   }) {
     // Filter base lessons for proficiency level
     final baseLessons = availableLessons.where((lesson) {
@@ -104,7 +108,9 @@ class LearningPathGenerator {
       goalType: goalType,
     );
 
-    return prioritizedLessons.map((l) => l.metadata.id).toList();
+    // Append userId to each lesson ID to force personalized AI generation
+    // instead of loading generic seeded lessons from Firestore
+    return prioritizedLessons.map((l) => '${l.metadata.id}_$userId').toList();
   }
 
   ProficiencyLevel _mapDifficultyToProficiency(String difficulty) {

@@ -28,4 +28,16 @@ abstract class ProgressRepository {
     String userId,
     String targetLanguage,
   );
+
+  /// Consume 1 heart
+  Future<Result<Progress>> consumeHeart(
+    String userId,
+    String targetLanguage,
+  );
+
+  /// Refill 1 heart using 50 Souls
+  Future<Result<Progress>> refillHeartWithSouls(
+    String userId,
+    String targetLanguage,
+  );
 }
